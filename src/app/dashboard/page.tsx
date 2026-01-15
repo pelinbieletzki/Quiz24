@@ -121,6 +121,12 @@ export default function Dashboard() {
                     >
                       ▶ Starten
                     </button>
+                    <Link
+                      href={`/quiz/edit/${quiz.id}`}
+                      className="px-4 py-2 bg-[#0364c1] text-white rounded-lg hover:bg-[#022d94] transition text-sm font-semibold"
+                    >
+                      ✏️ Bearbeiten
+                    </Link>
                     <button
                       onClick={() => deleteQuiz(quiz.id)}
                       className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition text-sm font-semibold"
