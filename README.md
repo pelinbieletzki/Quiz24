@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Quiz24 - Live Quiz App
 
-## Getting Started
+Eine Echtzeit-Quiz-Anwendung mit Next.js und Supabase.
 
-First, run the development server:
+## Features
+
+- 🔐 Benutzer-Authentifizierung (Email/Passwort)
+- 📝 Quiz erstellen mit beliebig vielen Fragen
+- 🎮 Live-Spiele mit Freunden
+- 📊 Echtzeit-Punktestand
+- 📱 Responsive Design
+
+## Tech Stack
+
+- **Frontend:** Next.js 14 (App Router)
+- **Styling:** Tailwind CSS
+- **Datenbank:** Supabase (PostgreSQL)
+- **Auth:** Supabase Auth
+- **Hosting:** Vercel
+
+## Deployment auf Vercel
+
+### 1. Supabase Setup
+
+1. Gehe zu [supabase.com](https://supabase.com) und erstelle ein Projekt
+2. Führe das SQL-Schema aus (`supabase/schema.sql`) im SQL Editor
+3. Notiere dir die **Project URL** und den **anon key** (Settings → API)
+
+### 2. GitHub Repository
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git init
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin https://github.com/DEIN-USERNAME/quiz24.git
+git push -u origin main
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Vercel Deployment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Gehe zu [vercel.com](https://vercel.com)
+2. Klicke auf "Add New Project"
+3. Importiere dein GitHub Repository
+4. Füge diese Environment Variables hinzu:
+   - `NEXT_PUBLIC_SUPABASE_URL` = Deine Supabase Project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = Dein Supabase anon key
+5. Klicke auf "Deploy"
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Fertig! Deine App ist jetzt live.
 
-## Learn More
+## Lokale Entwicklung
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Erstelle eine `.env.local` Datei:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
+```
 
-## Deploy on Vercel
+## Spielanleitung
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Als Quiz-Ersteller:
+1. Registrieren/Einloggen
+2. Quiz erstellen mit Fragen und Antworten
+3. Quiz starten → Code wird angezeigt
+4. Code an Mitspieler teilen
+5. "Spiel starten" wenn alle da sind
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Als Spieler:
+1. quiz24.vercel.app/join besuchen
+2. Code eingeben
+3. Nickname wählen
+4. Warten auf Start
+5. Fragen beantworten - schneller = mehr Punkte!
+
+## Lizenz
+
+MIT
