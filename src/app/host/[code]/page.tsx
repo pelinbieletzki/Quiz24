@@ -6,15 +6,21 @@ import { useParams } from 'next/navigation'
 import Header from '@/components/Header'
 import { QRCodeSVG } from 'qrcode.react'
 
+interface PlayerWithRank extends Player {
+  previousRank?: number
+}
+
 export default function HostGame() {
   const params = useParams()
   const code = params.code as string
 
   const [session, setSession] = useState<GameSession | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
-  const [players, setPlayers] = useState<Player[]>([])
+  const [players, setPlayers] = useState<PlayerWithRank[]>([])
+  const [answeredCount, setAnsweredCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [timeLeft, setTimeLeft] = useState(15)
+  const [previousRanks, setPreviousRanks] = useState<Record<string, number>>({})
 
   const loadGameData = useCallback(async () => {
     const { data: sessionData } = await supabase
@@ -44,18 +50,43 @@ export default function HostGame() {
       .eq('session_id', sessionData.id)
       .order('score', { ascending: false })
 
-    setPlayers(playersData || [])
+    // Track previous ranks for animation
+    const newPlayers = (playersData || []).map((player, index) => ({
+      ...player,
+      previousRank: previousRanks[player.id] ?? index
+    }))
+    
+    // Update previous ranks for next render
+    const newRanks: Record<string, number> = {}
+    newPlayers.forEach((player, index) => {
+      newRanks[player.id] = index
+    })
+    setPreviousRanks(newRanks)
+    setPlayers(newPlayers)
+
+    // Count answered players for current question
+    if (sessionData.status === 'playing' && questionsData) {
+      const currentQ = questionsData[sessionData.current_question]
+      if (currentQ) {
+        const { count } = await supabase
+          .from('player_answers')
+          .select('*', { count: 'exact', head: true })
+          .eq('question_id', currentQ.id)
+        setAnsweredCount(count || 0)
+      }
+    }
+
     setLoading(false)
-  }, [code])
+  }, [code, previousRanks])
 
   useEffect(() => {
     loadGameData()
-    const interval = setInterval(loadGameData, 2000)
+    const interval = setInterval(loadGameData, 1000) // Faster polling for better responsiveness
     return () => clearInterval(interval)
   }, [loadGameData])
 
   useEffect(() => {
-    if (session?.status === 'playing' && session?.question_start_time) {
+    if (session?.status === 'playing' && session?.question_start_time && !session?.answer_revealed) {
       const startTime = new Date(session.question_start_time).getTime()
       
       const timerInterval = setInterval(() => {
@@ -66,7 +97,7 @@ export default function HostGame() {
 
       return () => clearInterval(timerInterval)
     }
-  }, [session?.status, session?.question_start_time])
+  }, [session?.status, session?.question_start_time, session?.answer_revealed])
 
   const startGame = async () => {
     await supabase
@@ -74,8 +105,16 @@ export default function HostGame() {
       .update({ 
         status: 'playing', 
         current_question: 0,
-        question_start_time: new Date().toISOString()
+        question_start_time: new Date().toISOString(),
+        answer_revealed: false
       })
+      .eq('id', session?.id)
+  }
+
+  const revealAnswer = async () => {
+    await supabase
+      .from('game_sessions')
+      .update({ answer_revealed: true })
       .eq('id', session?.id)
   }
 
@@ -94,9 +133,11 @@ export default function HostGame() {
         .from('game_sessions')
         .update({ 
           current_question: nextIndex,
-          question_start_time: new Date().toISOString()
+          question_start_time: new Date().toISOString(),
+          answer_revealed: false
         })
         .eq('id', session.id)
+      setAnsweredCount(0)
     }
   }
 
@@ -119,6 +160,7 @@ export default function HostGame() {
   }
 
   const currentQuestion = questions[session?.current_question || 0]
+  const allAnswered = answeredCount >= players.length && players.length > 0
 
   // LOBBY VIEW
   if (session?.status === 'lobby') {
@@ -222,12 +264,16 @@ export default function HostGame() {
               {players.map((player, index) => (
                 <div
                   key={player.id}
-                  className={`flex justify-between items-center p-4 rounded-xl ${
+                  className={`flex justify-between items-center p-4 rounded-xl transition-all duration-500 ${
                     index === 0 ? 'bg-[#ffbb1e] border-2 border-[#022d94]' :
                     index === 1 ? 'bg-gray-200' :
                     index === 2 ? 'bg-orange-100' :
                     'bg-gray-50'
                   }`}
+                  style={{
+                    animation: 'slideIn 0.5s ease-out forwards',
+                    animationDelay: `${index * 0.1}s`
+                  }}
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">
@@ -254,6 +300,7 @@ export default function HostGame() {
 
   // PLAYING VIEW
   const answerColors = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500']
+  const isRevealed = session?.answer_revealed
 
   return (
     <div className="min-h-screen bg-[#f5f7fa]">
@@ -277,8 +324,16 @@ export default function HostGame() {
             <span className="text-2xl font-bold">{(session?.current_question || 0) + 1}</span>
             <span className="text-gray-500"> / {questions.length}</span>
           </div>
-          <div className={`text-4xl font-bold ${timeLeft <= 5 ? 'text-red-500' : 'text-[#022d94]'}`}>
-            {timeLeft}s
+          
+          {!isRevealed && (
+            <div className={`text-4xl font-bold ${timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-[#022d94]'}`}>
+              {timeLeft}s
+            </div>
+          )}
+          
+          <div className="text-[#022d94]">
+            <span className="text-gray-500">Antworten:</span>{' '}
+            <span className="text-xl font-bold">{answeredCount}/{players.length}</span>
           </div>
         </div>
 
@@ -289,7 +344,7 @@ export default function HostGame() {
           </h2>
         </div>
 
-        {/* Answers */}
+        {/* Answers - Show correct answer only when revealed */}
         {currentQuestion?.question_type === 'estimate' ? (
           <div className="card p-6 mb-6">
             <div className="text-center mb-4">
@@ -299,25 +354,43 @@ export default function HostGame() {
               </div>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-4 relative">
-              <div 
-                className="absolute h-4 w-4 bg-green-500 rounded-full top-0 transform -translate-x-1/2"
-                style={{ 
-                  left: `${((parseFloat(currentQuestion.answers[2]) - parseFloat(currentQuestion.answers[0])) / (parseFloat(currentQuestion.answers[1]) - parseFloat(currentQuestion.answers[0]))) * 100}%` 
-                }}
-              />
+              {isRevealed && (
+                <div 
+                  className="absolute h-6 w-6 bg-green-500 rounded-full top-1/2 -translate-y-1/2 transform -translate-x-1/2 ring-4 ring-green-200 animate-bounce"
+                  style={{ 
+                    left: `${((parseFloat(currentQuestion.answers[2]) - parseFloat(currentQuestion.answers[0])) / (parseFloat(currentQuestion.answers[1]) - parseFloat(currentQuestion.answers[0]))) * 100}%` 
+                  }}
+                />
+              )}
             </div>
             <div className="flex justify-between text-sm text-gray-500 mt-2">
               <span>{currentQuestion.answers[0]}</span>
-              <span className="text-green-600 font-semibold">Richtig: {currentQuestion.answers[2]}</span>
+              {isRevealed && (
+                <span className="text-green-600 font-semibold text-lg animate-pulse">
+                  ✓ Richtig: {currentQuestion.answers[2]}
+                </span>
+              )}
               <span>{currentQuestion.answers[1]}</span>
             </div>
           </div>
         ) : currentQuestion?.question_type === 'true_false' ? (
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className={`p-6 rounded-xl text-xl font-bold text-white text-center shadow-lg ${currentQuestion?.correct_index === 0 ? 'bg-green-500 ring-4 ring-green-300' : 'bg-green-500/60'}`}>
+            <div className={`p-6 rounded-xl text-xl font-bold text-white text-center shadow-lg transition-all duration-500 ${
+              isRevealed 
+                ? currentQuestion?.correct_index === 0 
+                  ? 'bg-green-500 ring-4 ring-green-300 scale-105' 
+                  : 'bg-gray-400 opacity-50 scale-95'
+                : 'bg-green-500'
+            }`}>
               ✓ Wahr
             </div>
-            <div className={`p-6 rounded-xl text-xl font-bold text-white text-center shadow-lg ${currentQuestion?.correct_index === 1 ? 'bg-red-500 ring-4 ring-red-300' : 'bg-red-500/60'}`}>
+            <div className={`p-6 rounded-xl text-xl font-bold text-white text-center shadow-lg transition-all duration-500 ${
+              isRevealed 
+                ? currentQuestion?.correct_index === 1 
+                  ? 'bg-red-500 ring-4 ring-red-300 scale-105' 
+                  : 'bg-gray-400 opacity-50 scale-95'
+                : 'bg-red-500'
+            }`}>
               ✗ Falsch
             </div>
           </div>
@@ -326,7 +399,13 @@ export default function HostGame() {
             {currentQuestion?.answers.map((answer, index) => (
               <div
                 key={index}
-                className={`${answerColors[index]} p-6 rounded-xl text-xl font-semibold text-white text-center shadow-lg ${currentQuestion?.correct_index === index ? 'ring-4 ring-white' : 'opacity-80'}`}
+                className={`p-6 rounded-xl text-xl font-semibold text-white text-center shadow-lg transition-all duration-500 ${
+                  isRevealed
+                    ? currentQuestion?.correct_index === index
+                      ? `${answerColors[index]} ring-4 ring-white scale-105`
+                      : 'bg-gray-400 opacity-50 scale-95'
+                    : answerColors[index]
+                }`}
               >
                 {answer}
               </div>
@@ -334,27 +413,80 @@ export default function HostGame() {
           </div>
         )}
 
-        {/* Leaderboard */}
-        <div className="card p-6 mb-6">
+        {/* Animated Leaderboard */}
+        <div className="card p-6 mb-6 overflow-hidden">
           <h3 className="text-xl font-semibold text-[#022d94] mb-4">Punktestand</h3>
-          <div className="space-y-2">
-            {players.slice(0, 5).map((player, index) => (
-              <div key={player.id} className="flex justify-between text-[#022d94]">
-                <span>{index + 1}. {player.nickname}</span>
-                <span className="font-bold">{player.score}</span>
-              </div>
-            ))}
+          <div className="relative">
+            {players.slice(0, 5).map((player, index) => {
+              const moved = player.previousRank !== undefined && player.previousRank !== index
+              const movedUp = player.previousRank !== undefined && player.previousRank > index
+              
+              return (
+                <div 
+                  key={player.id} 
+                  className={`flex justify-between items-center p-3 rounded-lg mb-2 transition-all duration-700 ease-out ${
+                    index === 0 ? 'bg-[#ffbb1e]' : 'bg-gray-100'
+                  } ${moved ? 'animate-pulse' : ''}`}
+                  style={{
+                    transform: moved ? 'scale(1.02)' : 'scale(1)',
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg font-bold text-[#022d94] w-6">
+                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
+                    </span>
+                    <span className="text-[#022d94] font-medium">{player.nickname}</span>
+                    {moved && movedUp && (
+                      <span className="text-green-500 text-sm font-bold animate-bounce">▲</span>
+                    )}
+                  </div>
+                  <span className="text-[#022d94] font-bold">{player.score}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
 
-        {/* Next Button */}
-        <button
-          onClick={nextQuestion}
-          className="w-full btn-secondary text-xl py-4"
-        >
-          {(session?.current_question || 0) + 1 >= questions.length ? '🏆 Ergebnisse zeigen' : 'Nächste Frage →'}
-        </button>
+        {/* Action Button */}
+        {!isRevealed ? (
+          <button
+            onClick={revealAnswer}
+            disabled={!allAnswered && timeLeft > 0}
+            className={`w-full text-xl py-4 rounded-xl font-semibold transition-all ${
+              allAnswered || timeLeft === 0
+                ? 'btn-secondary animate-pulse'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            {allAnswered 
+              ? '✨ Alle haben geantwortet! Antwort zeigen' 
+              : timeLeft === 0 
+                ? '⏱️ Zeit abgelaufen! Antwort zeigen'
+                : `⏳ Warte auf Antworten... (${answeredCount}/${players.length})`
+            }
+          </button>
+        ) : (
+          <button
+            onClick={nextQuestion}
+            className="w-full btn-secondary text-xl py-4"
+          >
+            {(session?.current_question || 0) + 1 >= questions.length ? '🏆 Ergebnisse zeigen' : 'Nächste Frage →'}
+          </button>
+        )}
       </main>
+
+      <style jsx>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateX(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+      `}</style>
     </div>
   )
 }

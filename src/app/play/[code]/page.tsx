@@ -21,6 +21,7 @@ export default function PlayGame() {
   const [hasAnswered, setHasAnswered] = useState(false)
   const [timeLeft, setTimeLeft] = useState(15)
   const [lastQuestionIndex, setLastQuestionIndex] = useState(-1)
+  const [pointsEarned, setPointsEarned] = useState(0)
 
   const loadGameData = useCallback(async () => {
     const { data: sessionData } = await supabase
@@ -35,9 +36,11 @@ export default function PlayGame() {
       return
     }
     
+    // Reset state when question changes
     if (sessionData.current_question !== lastQuestionIndex) {
       setHasAnswered(false)
       setSelectedAnswer(null)
+      setPointsEarned(0)
       setLastQuestionIndex(sessionData.current_question)
     }
     
@@ -56,7 +59,9 @@ export default function PlayGame() {
       const q = questionsData[sessionData.current_question]
       const min = parseFloat(q.answers[0])
       const max = parseFloat(q.answers[1])
-      setEstimateValue(Math.round((min + max) / 2))
+      if (!hasAnswered) {
+        setEstimateValue(Math.round((min + max) / 2))
+      }
     }
 
     const { data: playersData } = await supabase
@@ -73,16 +78,16 @@ export default function PlayGame() {
     }
 
     setLoading(false)
-  }, [code, currentPlayer, lastQuestionIndex])
+  }, [code, currentPlayer, lastQuestionIndex, hasAnswered])
 
   useEffect(() => {
     loadGameData()
-    const interval = setInterval(loadGameData, 2000)
+    const interval = setInterval(loadGameData, 1000) // Faster polling
     return () => clearInterval(interval)
   }, [loadGameData])
 
   useEffect(() => {
-    if (session?.status === 'playing' && session?.question_start_time) {
+    if (session?.status === 'playing' && session?.question_start_time && !session?.answer_revealed) {
       const startTime = new Date(session.question_start_time).getTime()
       
       const timerInterval = setInterval(() => {
@@ -93,7 +98,7 @@ export default function PlayGame() {
 
       return () => clearInterval(timerInterval)
     }
-  }, [session?.status, session?.question_start_time])
+  }, [session?.status, session?.question_start_time, session?.answer_revealed])
 
   const joinGame = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -133,6 +138,7 @@ export default function PlayGame() {
       : 15000
     
     const points = isCorrect ? Math.max(100, Math.round(1000 - (responseTime / 15))) : 0
+    setPointsEarned(points)
 
     await supabase.from('player_answers').insert({
       player_id: currentPlayer.id,
@@ -172,6 +178,7 @@ export default function PlayGame() {
     
     // Points: accuracy (0-1) * time bonus (100-1000)
     const points = Math.round(accuracy * Math.max(100, 1000 - (responseTime / 15)))
+    setPointsEarned(points)
 
     await supabase.from('player_answers').insert({
       player_id: currentPlayer.id,
@@ -300,9 +307,13 @@ export default function PlayGame() {
               {players.map((player, index) => (
                 <div
                   key={player.id}
-                  className={`flex justify-between items-center p-3 rounded-lg ${
+                  className={`flex justify-between items-center p-3 rounded-lg transition-all duration-500 ${
                     player.id === currentPlayer?.id ? 'bg-[#ffbb1e]' : 'bg-gray-100'
                   }`}
+                  style={{
+                    animation: 'slideIn 0.5s ease-out forwards',
+                    animationDelay: `${index * 0.1}s`
+                  }}
                 >
                   <span className="text-[#022d94] font-medium">
                     {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}{' '}
@@ -321,19 +332,213 @@ export default function PlayGame() {
             Neues Spiel beitreten
           </a>
         </main>
+
+        <style jsx>{`
+          @keyframes slideIn {
+            from {
+              opacity: 0;
+              transform: translateX(-20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateX(0);
+            }
+          }
+        `}</style>
       </div>
     )
   }
 
   // PLAYING - Show question and answers
   const currentQuestion = questions[session?.current_question || 0]
+  const isRevealed = session?.answer_revealed
   const answerColors = [
     'bg-red-500 hover:bg-red-600 active:bg-red-700',
     'bg-blue-500 hover:bg-blue-600 active:bg-blue-700',
     'bg-yellow-500 hover:bg-yellow-600 active:bg-yellow-700',
     'bg-green-500 hover:bg-green-600 active:bg-green-700'
   ]
+  const answerBgColors = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500']
 
+  // WAITING SCREEN after answering, before reveal
+  if (hasAnswered && !isRevealed) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#022d94] to-[#0364c1] flex flex-col">
+        <Header />
+        
+        <main className="flex-1 flex flex-col items-center justify-center px-4">
+          <div className="card p-8 text-center max-w-md">
+            <div className="text-6xl mb-6 animate-pulse">⏳</div>
+            <h2 className="text-2xl font-bold text-[#022d94] mb-4">
+              Antwort abgegeben!
+            </h2>
+            {currentQuestion?.question_type === 'estimate' ? (
+              <p className="text-gray-600 mb-4">
+                Deine Schätzung: <span className="font-bold text-[#022d94]">{selectedAnswer}</span>
+              </p>
+            ) : (
+              <p className="text-gray-600 mb-4">
+                Du hast gewählt: <span className="font-bold text-[#022d94]">
+                  {currentQuestion?.question_type === 'true_false'
+                    ? selectedAnswer === 0 ? 'Wahr' : 'Falsch'
+                    : currentQuestion?.answers[selectedAnswer || 0]
+                  }
+                </span>
+              </p>
+            )}
+            <div className="flex items-center justify-center gap-2 text-gray-500">
+              <div className="w-2 h-2 bg-[#022d94] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2 h-2 bg-[#022d94] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2 h-2 bg-[#022d94] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+            <p className="text-gray-500 mt-4 text-sm">Warte auf andere Spieler...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // REVEAL SCREEN - Show correct answer
+  if (hasAnswered && isRevealed) {
+    const isCorrect = currentQuestion?.question_type === 'estimate'
+      ? false // For estimates, we show points earned instead
+      : selectedAnswer === currentQuestion?.correct_index
+
+    return (
+      <div className="min-h-screen bg-[#f5f7fa] flex flex-col">
+        <Header />
+        
+        <main className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-4 py-6">
+          {/* Result Header */}
+          <div className="card p-6 mb-6 text-center">
+            {currentQuestion?.question_type === 'estimate' ? (
+              <>
+                <div className="text-5xl mb-4">📊</div>
+                <h2 className="text-2xl font-bold text-[#022d94] mb-2">
+                  Richtige Antwort: {currentQuestion.answers[2]}
+                </h2>
+                <p className="text-gray-600 mb-2">Deine Schätzung: {selectedAnswer}</p>
+                <p className={`text-xl font-bold ${pointsEarned > 500 ? 'text-green-500' : pointsEarned > 200 ? 'text-yellow-500' : 'text-red-500'}`}>
+                  +{pointsEarned} Punkte
+                </p>
+              </>
+            ) : (
+              <>
+                <div className={`text-6xl mb-4 ${isCorrect ? 'animate-bounce' : 'animate-pulse'}`}>
+                  {isCorrect ? '✅' : '❌'}
+                </div>
+                <h2 className={`text-2xl font-bold mb-2 ${isCorrect ? 'text-green-500' : 'text-red-500'}`}>
+                  {isCorrect ? 'Richtig!' : 'Falsch!'}
+                </h2>
+                {!isCorrect && (
+                  <p className="text-gray-600">
+                    Richtig war: <span className="font-bold text-[#022d94]">
+                      {currentQuestion?.question_type === 'true_false'
+                        ? currentQuestion?.correct_index === 0 ? 'Wahr' : 'Falsch'
+                        : currentQuestion?.answers[currentQuestion?.correct_index || 0]
+                      }
+                    </span>
+                  </p>
+                )}
+                <p className={`text-xl font-bold mt-2 ${isCorrect ? 'text-green-500' : 'text-gray-400'}`}>
+                  +{pointsEarned} Punkte
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* Show answers with correct highlighted */}
+          {currentQuestion?.question_type === 'estimate' ? (
+            <div className="card p-6 mb-6">
+              <div className="relative w-full bg-gray-200 rounded-full h-6">
+                {/* Your guess marker */}
+                <div 
+                  className="absolute h-8 w-2 bg-[#022d94] rounded top-1/2 -translate-y-1/2"
+                  style={{ 
+                    left: `${((selectedAnswer as number - parseFloat(currentQuestion.answers[0])) / (parseFloat(currentQuestion.answers[1]) - parseFloat(currentQuestion.answers[0]))) * 100}%` 
+                  }}
+                />
+                {/* Correct answer marker */}
+                <div 
+                  className="absolute h-8 w-8 bg-green-500 rounded-full top-1/2 -translate-y-1/2 -translate-x-1/2 ring-4 ring-green-200 flex items-center justify-center text-white text-sm font-bold"
+                  style={{ 
+                    left: `${((parseFloat(currentQuestion.answers[2]) - parseFloat(currentQuestion.answers[0])) / (parseFloat(currentQuestion.answers[1]) - parseFloat(currentQuestion.answers[0]))) * 100}%` 
+                  }}
+                >
+                  ✓
+                </div>
+              </div>
+              <div className="flex justify-between text-sm text-gray-500 mt-3">
+                <span>{currentQuestion.answers[0]}</span>
+                <span>{currentQuestion.answers[1]}</span>
+              </div>
+              <div className="flex justify-center gap-6 mt-4 text-sm">
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 bg-[#022d94] rounded"></span> Deine Schätzung
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 bg-green-500 rounded-full"></span> Richtig
+                </span>
+              </div>
+            </div>
+          ) : currentQuestion?.question_type === 'true_false' ? (
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className={`p-6 rounded-xl text-xl font-bold text-white text-center shadow-lg transition-all ${
+                currentQuestion?.correct_index === 0 
+                  ? 'bg-green-500 ring-4 ring-green-300 scale-105' 
+                  : selectedAnswer === 0 
+                    ? 'bg-red-400 opacity-75' 
+                    : 'bg-gray-400 opacity-50'
+              }`}>
+                ✓ Wahr
+                {currentQuestion?.correct_index === 0 && <span className="ml-2">✅</span>}
+              </div>
+              <div className={`p-6 rounded-xl text-xl font-bold text-white text-center shadow-lg transition-all ${
+                currentQuestion?.correct_index === 1 
+                  ? 'bg-green-500 ring-4 ring-green-300 scale-105' 
+                  : selectedAnswer === 1 
+                    ? 'bg-red-400 opacity-75' 
+                    : 'bg-gray-400 opacity-50'
+              }`}>
+                ✗ Falsch
+                {currentQuestion?.correct_index === 1 && <span className="ml-2">✅</span>}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {currentQuestion?.answers.map((answer, index) => (
+                <div
+                  key={index}
+                  className={`p-4 rounded-xl text-lg font-semibold text-white text-center shadow-lg transition-all ${
+                    currentQuestion?.correct_index === index
+                      ? `${answerBgColors[index]} ring-4 ring-white scale-105`
+                      : selectedAnswer === index
+                        ? 'bg-red-400 opacity-75'
+                        : 'bg-gray-400 opacity-50'
+                  }`}
+                >
+                  {answer}
+                  {currentQuestion?.correct_index === index && <span className="ml-2">✅</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Current Score */}
+          <div className="card p-4 text-center">
+            <p className="text-gray-500 text-sm">Dein Punktestand</p>
+            <p className="text-3xl font-bold text-[#022d94]">{currentPlayer?.score}</p>
+          </div>
+
+          <p className="text-center text-gray-500 mt-6 animate-pulse">
+            Warte auf nächste Frage...
+          </p>
+        </main>
+      </div>
+    )
+  }
+
+  // ANSWERING SCREEN - Show question and answer options
   return (
     <div className="min-h-screen bg-[#f5f7fa] flex flex-col">
       <Header />
@@ -363,33 +568,7 @@ export default function PlayGame() {
         </div>
 
         {/* Answers */}
-        {hasAnswered ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center card p-8">
-              {currentQuestion?.question_type === 'estimate' ? (
-                <>
-                  <div className="text-4xl mb-4">📊</div>
-                  <p className="text-lg text-[#022d94] font-semibold">
-                    Deine Schätzung: {selectedAnswer}
-                  </p>
-                  <p className="text-gray-500 mt-2">Warte auf die Auflösung...</p>
-                </>
-              ) : (
-                <>
-                  <div className="text-6xl mb-4">
-                    {selectedAnswer === currentQuestion?.correct_index ? '✅' : '❌'}
-                  </div>
-                  <p className="text-xl text-[#022d94] font-semibold">
-                    {selectedAnswer === currentQuestion?.correct_index 
-                      ? 'Richtig!' 
-                      : 'Leider falsch'}
-                  </p>
-                  <p className="text-gray-500 mt-2">Warte auf die nächste Frage...</p>
-                </>
-              )}
-            </div>
-          </div>
-        ) : currentQuestion?.question_type === 'estimate' ? (
+        {currentQuestion?.question_type === 'estimate' ? (
           // Estimate Question with Slider
           <div className="flex-1 flex flex-col justify-center">
             <div className="card p-6">

@@ -31,6 +31,7 @@ export interface GameSession {
   status: 'lobby' | 'playing' | 'finished'
   current_question: number
   question_start_time: string | null
+  answer_revealed: boolean
   created_at: string
 }
 

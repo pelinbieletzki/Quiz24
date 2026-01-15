@@ -29,6 +29,7 @@ CREATE TABLE game_sessions (
   status TEXT DEFAULT 'lobby',
   current_question INT DEFAULT 0,
   question_start_time TIMESTAMP WITH TIME ZONE,
+  answer_revealed BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
