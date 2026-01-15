@@ -339,43 +339,85 @@ export default function PlayGame() {
   // GAME FINISHED
   if (session?.status === 'finished') {
     const rank = players.findIndex(p => p.id === currentPlayer?.id) + 1
+    const isWinner = rank === 1
+    const winner = players[0]
     
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#022d94] to-[#0364c1]">
+      <div className="min-h-screen bg-gradient-to-b from-[#022d94] to-[#0364c1] overflow-hidden relative">
+        {/* Rocket Animations */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="rocket rocket-1">🚀</div>
+          <div className="rocket rocket-2">🚀</div>
+          <div className="rocket rocket-3">🚀</div>
+          <div className="rocket rocket-4">🚀</div>
+        </div>
+        
         <Header />
         
-        <main className="max-w-md mx-auto px-4 py-8 text-center">
-          <h1 className="text-4xl font-bold text-white mb-4">🎉 Fertig!</h1>
+        <main className="max-w-md mx-auto px-4 py-6 text-center relative z-10">
+          <h1 className="text-3xl font-bold text-white mb-4">🎉 Fertig!</h1>
           
-          <div className="card p-8 mb-6">
-            <p className="text-gray-500 mb-2">Du bist</p>
-            <p className="text-6xl font-bold text-[#022d94] mb-2">
-              #{rank}
-            </p>
-            <p className="text-2xl text-[#022d94] font-semibold">
-              {currentPlayer?.score} Punkte
-            </p>
-          </div>
+          {/* Winner Banner */}
+          {winner && (
+            <div className="mb-4 relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-4xl animate-bounce">
+                👑
+              </div>
+              <div className={`rounded-xl p-4 pt-8 ${isWinner ? 'bg-[#ffbb1e] shadow-2xl scale-105' : 'bg-white/20'}`}>
+                <p className={`text-sm font-medium mb-1 ${isWinner ? 'text-[#022d94]' : 'text-white/80'}`}>
+                  {isWinner ? '🏆 DU HAST GEWONNEN!' : 'GEWINNER'}
+                </p>
+                <p className={`text-2xl font-bold ${isWinner ? 'text-[#022d94]' : 'text-white'}`}>
+                  {winner.nickname}
+                </p>
+                <p className={`text-lg ${isWinner ? 'text-[#022d94]' : 'text-white/80'}`}>
+                  {winner.score} Punkte
+                </p>
+                {isWinner && (
+                  <div className="flex justify-center gap-2 mt-2">
+                    <span className="text-xl animate-pulse">⭐</span>
+                    <span className="text-xl animate-pulse" style={{ animationDelay: '0.2s' }}>⭐</span>
+                    <span className="text-xl animate-pulse" style={{ animationDelay: '0.4s' }}>⭐</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Your Result (if not winner) */}
+          {!isWinner && (
+            <div className="card p-4 mb-4">
+              <p className="text-gray-500 text-sm">Dein Platz</p>
+              <p className="text-4xl font-bold text-[#022d94]">
+                {rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`}
+              </p>
+              <p className="text-lg text-[#022d94] font-semibold">
+                {currentPlayer?.score} Punkte
+              </p>
+            </div>
+          )}
 
-          <div className="card p-6">
-            <h2 className="text-xl font-semibold text-[#022d94] mb-4">Alle Spieler</h2>
+          <div className="card p-4">
+            <h2 className="text-lg font-semibold text-[#022d94] mb-3">Alle Spieler</h2>
             <div className="space-y-2">
               {players.map((player, index) => (
                 <div
                   key={player.id}
-                  className={`flex justify-between items-center p-3 rounded-lg transition-all duration-500 ${
-                    player.id === currentPlayer?.id ? 'bg-[#ffbb1e]' : 'bg-gray-100'
+                  className={`flex justify-between items-center p-2 rounded-lg transition-all duration-500 ${
+                    player.id === currentPlayer?.id ? 'bg-[#ffbb1e]' : 
+                    index === 0 ? 'bg-yellow-100' : 'bg-gray-100'
                   }`}
                   style={{
                     animation: 'slideIn 0.5s ease-out forwards',
-                    animationDelay: `${index * 0.1}s`
+                    animationDelay: `${index * 0.1}s`,
+                    opacity: 0
                   }}
                 >
-                  <span className="text-[#022d94] font-medium">
+                  <span className="text-[#022d94] font-medium text-sm">
                     {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}{' '}
                     {player.nickname}
                   </span>
-                  <span className="text-[#022d94] font-bold">{player.score}</span>
+                  <span className="text-[#022d94] font-bold text-sm">{player.score}</span>
                 </div>
               ))}
             </div>
@@ -383,7 +425,7 @@ export default function PlayGame() {
 
           <a
             href="/join"
-            className="inline-block mt-8 px-6 py-3 bg-white text-[#022d94] font-semibold rounded-xl hover:bg-gray-100 transition"
+            className="inline-block mt-4 px-6 py-3 bg-white text-[#022d94] font-semibold rounded-xl hover:bg-gray-100 transition"
           >
             Neues Spiel beitreten
           </a>
@@ -399,6 +441,49 @@ export default function PlayGame() {
               opacity: 1;
               transform: translateX(0);
             }
+          }
+          
+          @keyframes rocketFly {
+            0% {
+              transform: translateY(100vh) rotate(45deg);
+              opacity: 0;
+            }
+            10% {
+              opacity: 1;
+            }
+            90% {
+              opacity: 1;
+            }
+            100% {
+              transform: translateY(-100vh) rotate(45deg);
+              opacity: 0;
+            }
+          }
+          
+          .rocket {
+            position: absolute;
+            font-size: 1.5rem;
+            animation: rocketFly 2.5s ease-in-out infinite;
+          }
+          
+          .rocket-1 {
+            left: 5%;
+            animation-delay: 0s;
+          }
+          
+          .rocket-2 {
+            left: 35%;
+            animation-delay: 0.6s;
+          }
+          
+          .rocket-3 {
+            left: 65%;
+            animation-delay: 1.2s;
+          }
+          
+          .rocket-4 {
+            left: 95%;
+            animation-delay: 1.8s;
           }
         `}</style>
       </div>

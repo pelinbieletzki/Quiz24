@@ -283,20 +283,50 @@ export default function HostGame() {
 
   // GAME FINISHED VIEW
   if (session?.status === 'finished') {
+    const winner = players[0]
+    
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#022d94] to-[#0364c1]">
+      <div className="min-h-screen bg-gradient-to-b from-[#022d94] to-[#0364c1] overflow-hidden relative">
+        {/* Rocket Animations */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="rocket rocket-1">🚀</div>
+          <div className="rocket rocket-2">🚀</div>
+          <div className="rocket rocket-3">🚀</div>
+          <div className="rocket rocket-4">🚀</div>
+          <div className="rocket rocket-5">🚀</div>
+        </div>
+        
         <Header showProfile />
         
-        <main className="max-w-2xl mx-auto px-4 py-8 text-center">
-          <h1 className="text-4xl font-bold text-white mb-8">🎉 Spiel beendet!</h1>
+        <main className="max-w-2xl mx-auto px-4 py-8 text-center relative z-10">
+          <h1 className="text-4xl font-bold text-white mb-4">🎉 Spiel beendet!</h1>
           
-          <div className="card p-8">
-            <h2 className="text-2xl font-semibold text-[#022d94] mb-6">Endergebnis</h2>
-            <div className="space-y-3">
+          {/* Winner Highlight */}
+          {winner && (
+            <div className="mb-8 relative">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-6xl animate-bounce">
+                👑
+              </div>
+              <div className="bg-[#ffbb1e] rounded-2xl p-6 pt-10 shadow-2xl transform hover:scale-105 transition-transform">
+                <p className="text-[#022d94] text-sm font-medium mb-1">GEWINNER</p>
+                <p className="text-4xl font-bold text-[#022d94] mb-2">{winner.nickname}</p>
+                <p className="text-2xl text-[#022d94]">🏆 {winner.score} Punkte</p>
+                <div className="flex justify-center gap-2 mt-3">
+                  <span className="text-2xl animate-pulse">⭐</span>
+                  <span className="text-2xl animate-pulse" style={{ animationDelay: '0.2s' }}>⭐</span>
+                  <span className="text-2xl animate-pulse" style={{ animationDelay: '0.4s' }}>⭐</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="card p-6">
+            <h2 className="text-xl font-semibold text-[#022d94] mb-4">Endergebnis</h2>
+            <div className="space-y-2">
               {players.map((player, index) => (
                 <div
                   key={player.id}
-                  className={`flex justify-between items-center p-4 rounded-xl transition-all duration-500 ${
+                  className={`flex justify-between items-center p-3 rounded-xl transition-all duration-500 ${
                     index === 0 ? 'bg-[#ffbb1e] border-2 border-[#022d94]' :
                     index === 1 ? 'bg-gray-200' :
                     index === 2 ? 'bg-orange-100' :
@@ -304,16 +334,17 @@ export default function HostGame() {
                   }`}
                   style={{
                     animation: 'slideIn 0.5s ease-out forwards',
-                    animationDelay: `${index * 0.1}s`
+                    animationDelay: `${index * 0.1}s`,
+                    opacity: 0
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">
+                    <span className="text-xl">
                       {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
                     </span>
                     <span className="text-[#022d94] font-semibold">{player.nickname}</span>
                   </div>
-                  <span className="text-[#022d94] font-bold">{player.score} Punkte</span>
+                  <span className="text-[#022d94] font-bold">{player.score}</span>
                 </div>
               ))}
             </div>
@@ -321,11 +352,72 @@ export default function HostGame() {
 
           <a
             href="/dashboard"
-            className="inline-block mt-8 px-6 py-3 bg-white text-[#022d94] font-semibold rounded-xl hover:bg-gray-100 transition"
+            className="inline-block mt-6 px-6 py-3 bg-white text-[#022d94] font-semibold rounded-xl hover:bg-gray-100 transition"
           >
             Zurück zum Dashboard
           </a>
         </main>
+
+        <style jsx>{`
+          @keyframes slideIn {
+            from {
+              opacity: 0;
+              transform: translateX(-30px);
+            }
+            to {
+              opacity: 1;
+              transform: translateX(0);
+            }
+          }
+          
+          @keyframes rocketFly {
+            0% {
+              transform: translateY(100vh) rotate(45deg);
+              opacity: 0;
+            }
+            10% {
+              opacity: 1;
+            }
+            90% {
+              opacity: 1;
+            }
+            100% {
+              transform: translateY(-100vh) rotate(45deg);
+              opacity: 0;
+            }
+          }
+          
+          .rocket {
+            position: absolute;
+            font-size: 2rem;
+            animation: rocketFly 3s ease-in-out infinite;
+          }
+          
+          .rocket-1 {
+            left: 10%;
+            animation-delay: 0s;
+          }
+          
+          .rocket-2 {
+            left: 30%;
+            animation-delay: 0.6s;
+          }
+          
+          .rocket-3 {
+            left: 50%;
+            animation-delay: 1.2s;
+          }
+          
+          .rocket-4 {
+            left: 70%;
+            animation-delay: 1.8s;
+          }
+          
+          .rocket-5 {
+            left: 90%;
+            animation-delay: 2.4s;
+          }
+        `}</style>
       </div>
     )
   }
