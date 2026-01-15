@@ -93,39 +93,43 @@ export default function HostGame() {
     return () => clearInterval(interval)
   }, [loadGameData])
 
+  // Timer and auto-reveal logic combined
   useEffect(() => {
     if (session?.status === 'playing' && session?.question_start_time && !session?.answer_revealed) {
       const startTime = new Date(session.question_start_time).getTime()
+      let hasAutoRevealed = false
       
-      const timerInterval = setInterval(() => {
+      const timerInterval = setInterval(async () => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000)
         const remaining = Math.max(0, 15 - elapsed)
         setTimeLeft(remaining)
+        
+        // Auto-reveal when time is up
+        if (remaining === 0 && !hasAutoRevealed) {
+          hasAutoRevealed = true
+          await supabase
+            .from('game_sessions')
+            .update({ answer_revealed: true })
+            .eq('id', session?.id)
+        }
       }, 100)
 
       return () => clearInterval(timerInterval)
     }
-  }, [session?.status, session?.question_start_time, session?.answer_revealed])
+  }, [session?.status, session?.question_start_time, session?.answer_revealed, session?.id])
 
-  // Auto-reveal when time runs out or all players answered
+  // Auto-reveal when all players have answered
   useEffect(() => {
-    if (session?.status === 'playing' && !session?.answer_revealed) {
-      const allAnswered = answeredCount >= players.length && players.length > 0
-      const timeUp = timeLeft === 0
-      
-      if (allAnswered || timeUp) {
-        // Small delay to ensure UI updates first
-        const timeout = setTimeout(() => {
-          supabase
-            .from('game_sessions')
-            .update({ answer_revealed: true })
-            .eq('id', session?.id)
-        }, 500)
-        
-        return () => clearTimeout(timeout)
+    if (session?.status === 'playing' && !session?.answer_revealed && players.length > 0) {
+      if (answeredCount >= players.length) {
+        // All players answered - reveal immediately
+        supabase
+          .from('game_sessions')
+          .update({ answer_revealed: true })
+          .eq('id', session?.id)
       }
     }
-  }, [session?.status, session?.answer_revealed, session?.id, answeredCount, players.length, timeLeft])
+  }, [session?.status, session?.answer_revealed, session?.id, answeredCount, players.length])
 
   const startGame = async () => {
     await supabase
