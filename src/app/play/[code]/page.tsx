@@ -22,6 +22,7 @@ export default function PlayGame() {
   const [timeLeft, setTimeLeft] = useState(15)
   const [lastQuestionIndex, setLastQuestionIndex] = useState(-1)
   const [pointsEarned, setPointsEarned] = useState(0)
+  const [estimateInitialized, setEstimateInitialized] = useState(false)
 
   const loadGameData = useCallback(async () => {
     const { data: sessionData } = await supabase
@@ -41,6 +42,7 @@ export default function PlayGame() {
       setHasAnswered(false)
       setSelectedAnswer(null)
       setPointsEarned(0)
+      setEstimateInitialized(false)
       setLastQuestionIndex(sessionData.current_question)
     }
     
@@ -79,14 +81,13 @@ export default function PlayGame() {
 
     setQuestions(questionsData || [])
     
-    // Set initial estimate value when question changes
-    if (questionsData && questionsData[sessionData.current_question]?.question_type === 'estimate') {
+    // Set initial estimate value ONLY ONCE when question changes
+    if (questionsData && questionsData[sessionData.current_question]?.question_type === 'estimate' && !estimateInitialized && !hasAnswered) {
       const q = questionsData[sessionData.current_question]
       const min = parseFloat(q.answers[0])
       const max = parseFloat(q.answers[1])
-      if (!hasAnswered) {
-        setEstimateValue(Math.round((min + max) / 2))
-      }
+      setEstimateValue(Math.round((min + max) / 2))
+      setEstimateInitialized(true)
     }
 
     const { data: playersData } = await supabase
@@ -103,7 +104,7 @@ export default function PlayGame() {
     }
 
     setLoading(false)
-  }, [code, currentPlayer, lastQuestionIndex, hasAnswered])
+  }, [code, currentPlayer, lastQuestionIndex, hasAnswered, estimateInitialized])
 
   useEffect(() => {
     loadGameData()
