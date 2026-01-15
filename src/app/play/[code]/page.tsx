@@ -23,6 +23,7 @@ export default function PlayGame() {
   const [timeLeft, setTimeLeft] = useState(15)
   const [lastQuestionIndex, setLastQuestionIndex] = useState(-1)
   const [pointsEarned, setPointsEarned] = useState(0)
+  const [scoreboardCountdown, setScoreboardCountdown] = useState(5)
 
   const loadGameData = useCallback(async () => {
     const { data: sessionData } = await supabase
@@ -100,6 +101,18 @@ export default function PlayGame() {
       return () => clearInterval(timerInterval)
     }
   }, [session?.status, session?.question_start_time, session?.answer_revealed])
+
+  // Countdown for scoreboard display
+  useEffect(() => {
+    if (session?.status === 'playing' && session?.answer_revealed) {
+      setScoreboardCountdown(5)
+      const countdownInterval = setInterval(() => {
+        setScoreboardCountdown(prev => Math.max(0, prev - 1))
+      }, 1000)
+
+      return () => clearInterval(countdownInterval)
+    }
+  }, [session?.status, session?.answer_revealed, session?.current_question])
 
   const joinGame = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -525,15 +538,49 @@ export default function PlayGame() {
             </div>
           )}
 
-          {/* Current Score */}
-          <div className="card p-4 text-center">
-            <p className="text-gray-500 text-sm">Dein Punktestand</p>
-            <p className="text-3xl font-bold text-[#022d94]">{currentPlayer?.score}</p>
+          {/* Scoreboard */}
+          <div className="card p-4">
+            <h3 className="text-lg font-semibold text-[#022d94] mb-3 text-center">🏆 Scoreboard</h3>
+            <div className="space-y-2">
+              {players.slice(0, 5).map((player, index) => {
+                const isCurrentPlayer = player.id === currentPlayer?.id
+                return (
+                  <div 
+                    key={player.id} 
+                    className={`flex justify-between items-center p-2 rounded-lg transition-all duration-500 ${
+                      isCurrentPlayer ? 'bg-[#ffbb1e] scale-105' : index === 0 ? 'bg-[#ffbb1e]/50' : 'bg-gray-100'
+                    }`}
+                    style={{
+                      animation: 'slideIn 0.3s ease-out forwards',
+                      animationDelay: `${index * 0.1}s`
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-[#022d94]">
+                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
+                      </span>
+                      <span className={`text-sm ${isCurrentPlayer ? 'font-bold' : ''} text-[#022d94]`}>
+                        {player.nickname} {isCurrentPlayer && '(Du)'}
+                      </span>
+                    </div>
+                    <span className="text-sm font-bold text-[#022d94]">{player.score}</span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
-          <p className="text-center text-gray-500 mt-6 animate-pulse">
-            Warte auf nächste Frage...
-          </p>
+          {/* Countdown */}
+          <div className="text-center mt-4">
+            <div className="inline-flex items-center gap-2 bg-[#022d94] text-white px-4 py-2 rounded-xl">
+              <span className="text-sm">
+                {(session?.current_question || 0) + 1 >= questions.length 
+                  ? '🏆 Ergebnisse in' 
+                  : '➡️ Nächste Frage in'}
+              </span>
+              <span className="text-2xl font-bold text-[#ffbb1e] animate-pulse">{scoreboardCountdown}</span>
+            </div>
+          </div>
         </main>
       </div>
     )
