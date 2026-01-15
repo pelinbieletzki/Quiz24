@@ -100,28 +100,29 @@ export default function HostGame() {
     }
   }, [session?.status, session?.question_start_time, session?.answer_revealed])
 
-  // Auto-reveal when all players have answered or time is up
+  // Auto-reveal ONLY when ALL players have answered (not on timeout)
   useEffect(() => {
     const allAnswered = answeredCount >= players.length && players.length > 0
-    const timeUp = timeLeft === 0
     
-    if (session?.status === 'playing' && !session?.answer_revealed && (allAnswered || timeUp)) {
-      // Auto-reveal after a short delay
+    if (session?.status === 'playing' && !session?.answer_revealed && allAnswered) {
+      // Auto-reveal after a short delay when all have answered
       const timeout = setTimeout(async () => {
         await supabase
           .from('game_sessions')
           .update({ answer_revealed: true })
           .eq('id', session?.id)
-        setScoreboardCountdown(5) // Reset countdown when revealing
+        setScoreboardCountdown(5)
       }, 500)
       
       return () => clearTimeout(timeout)
     }
-  }, [answeredCount, players.length, timeLeft, session?.status, session?.answer_revealed, session?.id])
+  }, [answeredCount, players.length, session?.status, session?.answer_revealed, session?.id])
 
   // Auto-advance to next question after 5 seconds of showing scoreboard
   useEffect(() => {
-    if (session?.status === 'playing' && session?.answer_revealed) {
+    if (session?.status === 'playing' && session?.answer_revealed === true) {
+      setScoreboardCountdown(5)
+      
       const countdownInterval = setInterval(() => {
         setScoreboardCountdown(prev => {
           if (prev <= 1) {
@@ -150,7 +151,6 @@ export default function HostGame() {
             })
             .eq('id', session.id)
           setAnsweredCount(0)
-          setScoreboardCountdown(5)
         }
       }, 5000)
 
@@ -159,7 +159,7 @@ export default function HostGame() {
         clearTimeout(advanceTimeout)
       }
     }
-  }, [session?.status, session?.answer_revealed, session?.id, session?.current_question, questions.length])
+  }, [session?.answer_revealed, session?.status, session?.id, session?.current_question, questions.length])
 
   const startGame = async () => {
     await supabase
