@@ -18,12 +18,10 @@ export default function PlayGame() {
   const [loading, setLoading] = useState(true)
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [estimateValue, setEstimateValue] = useState<number>(50)
-  const [hasInteractedWithSlider, setHasInteractedWithSlider] = useState(false)
   const [hasAnswered, setHasAnswered] = useState(false)
   const [timeLeft, setTimeLeft] = useState(15)
   const [lastQuestionIndex, setLastQuestionIndex] = useState(-1)
   const [pointsEarned, setPointsEarned] = useState(0)
-  const [scoreboardCountdown, setScoreboardCountdown] = useState(5)
 
   const loadGameData = useCallback(async () => {
     const { data: sessionData } = await supabase
@@ -38,33 +36,33 @@ export default function PlayGame() {
       return
     }
     
-    // Load questions
-    const { data: questionsData } = await supabase
-      .from('questions')
-      .select('*')
-      .eq('quiz_id', sessionData.quiz_id)
-      .order('order_index')
-    
-    setQuestions(questionsData || [])
-    
     // Reset state when question changes
     if (sessionData.current_question !== lastQuestionIndex) {
       setHasAnswered(false)
       setSelectedAnswer(null)
       setPointsEarned(0)
-      setHasInteractedWithSlider(false)
       setLastQuestionIndex(sessionData.current_question)
-      
-      // Set initial estimate value only when question changes
-      if (questionsData && questionsData[sessionData.current_question]?.question_type === 'estimate') {
-        const q = questionsData[sessionData.current_question]
-        const min = parseFloat(q.answers[0])
-        const max = parseFloat(q.answers[1])
-        setEstimateValue(Math.round((min + max) / 2))
-      }
     }
     
     setSession(sessionData)
+
+    const { data: questionsData } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('quiz_id', sessionData.quiz_id)
+      .order('order_index')
+
+    setQuestions(questionsData || [])
+    
+    // Set initial estimate value when question changes
+    if (questionsData && questionsData[sessionData.current_question]?.question_type === 'estimate') {
+      const q = questionsData[sessionData.current_question]
+      const min = parseFloat(q.answers[0])
+      const max = parseFloat(q.answers[1])
+      if (!hasAnswered) {
+        setEstimateValue(Math.round((min + max) / 2))
+      }
+    }
 
     const { data: playersData } = await supabase
       .from('players')
@@ -80,7 +78,7 @@ export default function PlayGame() {
     }
 
     setLoading(false)
-  }, [code, currentPlayer, lastQuestionIndex])
+  }, [code, currentPlayer, lastQuestionIndex, hasAnswered])
 
   useEffect(() => {
     loadGameData()
@@ -101,18 +99,6 @@ export default function PlayGame() {
       return () => clearInterval(timerInterval)
     }
   }, [session?.status, session?.question_start_time, session?.answer_revealed])
-
-  // Countdown for scoreboard display
-  useEffect(() => {
-    if (session?.status === 'playing' && session?.answer_revealed) {
-      setScoreboardCountdown(5)
-      const countdownInterval = setInterval(() => {
-        setScoreboardCountdown(prev => Math.max(0, prev - 1))
-      }, 1000)
-
-      return () => clearInterval(countdownInterval)
-    }
-  }, [session?.status, session?.answer_revealed, session?.current_question])
 
   const joinGame = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -538,49 +524,15 @@ export default function PlayGame() {
             </div>
           )}
 
-          {/* Scoreboard */}
-          <div className="card p-4">
-            <h3 className="text-lg font-semibold text-[#022d94] mb-3 text-center">🏆 Scoreboard</h3>
-            <div className="space-y-2">
-              {players.slice(0, 5).map((player, index) => {
-                const isCurrentPlayer = player.id === currentPlayer?.id
-                return (
-                  <div 
-                    key={player.id} 
-                    className={`flex justify-between items-center p-2 rounded-lg transition-all duration-500 ${
-                      isCurrentPlayer ? 'bg-[#ffbb1e] scale-105' : index === 0 ? 'bg-[#ffbb1e]/50' : 'bg-gray-100'
-                    }`}
-                    style={{
-                      animation: 'slideIn 0.3s ease-out forwards',
-                      animationDelay: `${index * 0.1}s`
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-[#022d94]">
-                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
-                      </span>
-                      <span className={`text-sm ${isCurrentPlayer ? 'font-bold' : ''} text-[#022d94]`}>
-                        {player.nickname} {isCurrentPlayer && '(Du)'}
-                      </span>
-                    </div>
-                    <span className="text-sm font-bold text-[#022d94]">{player.score}</span>
-                  </div>
-                )
-              })}
-            </div>
+          {/* Current Score */}
+          <div className="card p-4 text-center">
+            <p className="text-gray-500 text-sm">Dein Punktestand</p>
+            <p className="text-3xl font-bold text-[#022d94]">{currentPlayer?.score}</p>
           </div>
 
-          {/* Countdown */}
-          <div className="text-center mt-4">
-            <div className="inline-flex items-center gap-2 bg-[#022d94] text-white px-4 py-2 rounded-xl">
-              <span className="text-sm">
-                {(session?.current_question || 0) + 1 >= questions.length 
-                  ? '🏆 Ergebnisse in' 
-                  : '➡️ Nächste Frage in'}
-              </span>
-              <span className="text-2xl font-bold text-[#ffbb1e] animate-pulse">{scoreboardCountdown}</span>
-            </div>
-          </div>
+          <p className="text-center text-gray-500 mt-6 animate-pulse">
+            Warte auf nächste Frage...
+          </p>
         </main>
       </div>
     )
@@ -629,10 +581,7 @@ export default function PlayGame() {
                 min={parseFloat(currentQuestion.answers[0])}
                 max={parseFloat(currentQuestion.answers[1])}
                 value={estimateValue}
-                onChange={(e) => {
-                  setEstimateValue(parseInt(e.target.value))
-                  setHasInteractedWithSlider(true)
-                }}
+                onChange={(e) => setEstimateValue(parseInt(e.target.value))}
                 className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#022d94]"
               />
               

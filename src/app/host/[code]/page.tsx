@@ -20,7 +20,6 @@ export default function HostGame() {
   const [answeredCount, setAnsweredCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [timeLeft, setTimeLeft] = useState(15)
-  const [scoreboardCountdown, setScoreboardCountdown] = useState(5)
   const [previousRanks, setPreviousRanks] = useState<Record<string, number>>({})
 
   const loadGameData = useCallback(async () => {
@@ -99,67 +98,6 @@ export default function HostGame() {
       return () => clearInterval(timerInterval)
     }
   }, [session?.status, session?.question_start_time, session?.answer_revealed])
-
-  // Auto-reveal ONLY when ALL players have answered (not on timeout)
-  useEffect(() => {
-    const allAnswered = answeredCount >= players.length && players.length > 0
-    
-    if (session?.status === 'playing' && !session?.answer_revealed && allAnswered) {
-      // Auto-reveal after a short delay when all have answered
-      const timeout = setTimeout(async () => {
-        await supabase
-          .from('game_sessions')
-          .update({ answer_revealed: true })
-          .eq('id', session?.id)
-        setScoreboardCountdown(5)
-      }, 500)
-      
-      return () => clearTimeout(timeout)
-    }
-  }, [answeredCount, players.length, session?.status, session?.answer_revealed, session?.id])
-
-  // Auto-advance to next question after 5 seconds of showing scoreboard
-  useEffect(() => {
-    if (session?.status === 'playing' && session?.answer_revealed === true) {
-      setScoreboardCountdown(5)
-      
-      const countdownInterval = setInterval(() => {
-        setScoreboardCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(countdownInterval)
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-
-      const advanceTimeout = setTimeout(async () => {
-        const nextIndex = session.current_question + 1
-        
-        if (nextIndex >= questions.length) {
-          await supabase
-            .from('game_sessions')
-            .update({ status: 'finished' })
-            .eq('id', session.id)
-        } else {
-          await supabase
-            .from('game_sessions')
-            .update({ 
-              current_question: nextIndex,
-              question_start_time: new Date().toISOString(),
-              answer_revealed: false
-            })
-            .eq('id', session.id)
-          setAnsweredCount(0)
-        }
-      }, 5000)
-
-      return () => {
-        clearInterval(countdownInterval)
-        clearTimeout(advanceTimeout)
-      }
-    }
-  }, [session?.answer_revealed, session?.status, session?.id, session?.current_question, questions.length])
 
   const startGame = async () => {
     await supabase
@@ -509,7 +447,7 @@ export default function HostGame() {
           </div>
         </div>
 
-        {/* Action Button / Countdown */}
+        {/* Action Button */}
         {!isRevealed ? (
           <button
             onClick={revealAnswer}
@@ -528,16 +466,12 @@ export default function HostGame() {
             }
           </button>
         ) : (
-          <div className="text-center">
-            <div className="inline-flex items-center gap-3 bg-[#022d94] text-white px-6 py-3 rounded-xl">
-              <span className="text-lg">
-                {(session?.current_question || 0) + 1 >= questions.length 
-                  ? '🏆 Ergebnisse in' 
-                  : '➡️ Nächste Frage in'}
-              </span>
-              <span className="text-3xl font-bold text-[#ffbb1e] animate-pulse">{scoreboardCountdown}</span>
-            </div>
-          </div>
+          <button
+            onClick={nextQuestion}
+            className="w-full btn-secondary text-xl py-4"
+          >
+            {(session?.current_question || 0) + 1 >= questions.length ? '🏆 Ergebnisse zeigen' : 'Nächste Frage →'}
+          </button>
         )}
       </main>
 
