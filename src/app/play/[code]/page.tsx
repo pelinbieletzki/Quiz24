@@ -453,41 +453,40 @@ export default function PlayGame() {
     )
   }
 
-  // REVEAL SCREEN - Show correct answer
+  // REVEAL SCREEN - Show correct answer and scoreboard
   if (hasAnswered && isRevealed) {
     const isCorrect = currentQuestion?.question_type === 'estimate'
       ? false // For estimates, we show points earned instead
       : selectedAnswer === currentQuestion?.correct_index
+    const currentRank = players.findIndex(p => p.id === currentPlayer?.id) + 1
 
     return (
-      <div className="min-h-screen bg-[#f5f7fa] flex flex-col">
+      <div className="min-h-screen bg-gradient-to-b from-[#022d94] to-[#0364c1] flex flex-col">
         <Header />
         
-        <main className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-4 py-6">
+        <main className="flex-1 flex flex-col max-w-md mx-auto w-full px-4 py-6">
           {/* Result Header */}
-          <div className="card p-6 mb-6 text-center">
+          <div className="card p-6 mb-4 text-center">
             {currentQuestion?.question_type === 'estimate' ? (
               <>
-                <div className="text-5xl mb-4">📊</div>
-                <h2 className="text-2xl font-bold text-[#022d94] mb-2">
-                  Richtige Antwort: {currentQuestion.answers[2]}
-                </h2>
-                <p className="text-gray-600 mb-2">Deine Schätzung: {selectedAnswer}</p>
-                <p className={`text-xl font-bold ${pointsEarned > 500 ? 'text-green-500' : pointsEarned > 200 ? 'text-yellow-500' : 'text-red-500'}`}>
+                <div className="text-4xl mb-2">📊</div>
+                <p className="text-gray-600 text-sm">Richtige Antwort: <span className="font-bold text-green-600">{currentQuestion.answers[2]}</span></p>
+                <p className="text-gray-500 text-sm">Deine Schätzung: {selectedAnswer}</p>
+                <p className={`text-2xl font-bold mt-2 ${pointsEarned > 500 ? 'text-green-500' : pointsEarned > 200 ? 'text-[#ffbb1e]' : 'text-red-500'}`}>
                   +{pointsEarned} Punkte
                 </p>
               </>
             ) : (
               <>
-                <div className={`text-6xl mb-4 ${isCorrect ? 'animate-bounce' : 'animate-pulse'}`}>
+                <div className={`text-5xl mb-2 ${isCorrect ? 'animate-bounce' : ''}`}>
                   {isCorrect ? '✅' : '❌'}
                 </div>
-                <h2 className={`text-2xl font-bold mb-2 ${isCorrect ? 'text-green-500' : 'text-red-500'}`}>
+                <h2 className={`text-xl font-bold ${isCorrect ? 'text-green-500' : 'text-red-500'}`}>
                   {isCorrect ? 'Richtig!' : 'Falsch!'}
                 </h2>
                 {!isCorrect && (
-                  <p className="text-gray-600">
-                    Richtig war: <span className="font-bold text-[#022d94]">
+                  <p className="text-gray-600 text-sm mt-1">
+                    Richtig: <span className="font-bold text-[#022d94]">
                       {currentQuestion?.question_type === 'true_false'
                         ? currentQuestion?.correct_index === 0 ? 'Wahr' : 'Falsch'
                         : currentQuestion?.answers[currentQuestion?.correct_index || 0]
@@ -495,100 +494,76 @@ export default function PlayGame() {
                     </span>
                   </p>
                 )}
-                <p className={`text-xl font-bold mt-2 ${isCorrect ? 'text-green-500' : 'text-gray-400'}`}>
+                <p className={`text-2xl font-bold mt-2 ${isCorrect ? 'text-green-500' : 'text-gray-400'}`}>
                   +{pointsEarned} Punkte
                 </p>
               </>
             )}
           </div>
 
-          {/* Show answers with correct highlighted */}
-          {currentQuestion?.question_type === 'estimate' ? (
-            <div className="card p-6 mb-6">
-              <div className="relative w-full bg-gray-200 rounded-full h-6">
-                {/* Your guess marker */}
-                <div 
-                  className="absolute h-8 w-2 bg-[#022d94] rounded top-1/2 -translate-y-1/2"
-                  style={{ 
-                    left: `${((selectedAnswer as number - parseFloat(currentQuestion.answers[0])) / (parseFloat(currentQuestion.answers[1]) - parseFloat(currentQuestion.answers[0]))) * 100}%` 
-                  }}
-                />
-                {/* Correct answer marker */}
-                <div 
-                  className="absolute h-8 w-8 bg-green-500 rounded-full top-1/2 -translate-y-1/2 -translate-x-1/2 ring-4 ring-green-200 flex items-center justify-center text-white text-sm font-bold"
-                  style={{ 
-                    left: `${((parseFloat(currentQuestion.answers[2]) - parseFloat(currentQuestion.answers[0])) / (parseFloat(currentQuestion.answers[1]) - parseFloat(currentQuestion.answers[0]))) * 100}%` 
-                  }}
-                >
-                  ✓
-                </div>
-              </div>
-              <div className="flex justify-between text-sm text-gray-500 mt-3">
-                <span>{currentQuestion.answers[0]}</span>
-                <span>{currentQuestion.answers[1]}</span>
-              </div>
-              <div className="flex justify-center gap-6 mt-4 text-sm">
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 bg-[#022d94] rounded"></span> Deine Schätzung
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 bg-green-500 rounded-full"></span> Richtig
-                </span>
-              </div>
-            </div>
-          ) : currentQuestion?.question_type === 'true_false' ? (
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className={`p-6 rounded-xl text-xl font-bold text-white text-center shadow-lg transition-all ${
-                currentQuestion?.correct_index === 0 
-                  ? 'bg-green-500 ring-4 ring-green-300 scale-105' 
-                  : selectedAnswer === 0 
-                    ? 'bg-red-400 opacity-75' 
-                    : 'bg-gray-400 opacity-50'
-              }`}>
-                ✓ Wahr
-                {currentQuestion?.correct_index === 0 && <span className="ml-2">✅</span>}
-              </div>
-              <div className={`p-6 rounded-xl text-xl font-bold text-white text-center shadow-lg transition-all ${
-                currentQuestion?.correct_index === 1 
-                  ? 'bg-green-500 ring-4 ring-green-300 scale-105' 
-                  : selectedAnswer === 1 
-                    ? 'bg-red-400 opacity-75' 
-                    : 'bg-gray-400 opacity-50'
-              }`}>
-                ✗ Falsch
-                {currentQuestion?.correct_index === 1 && <span className="ml-2">✅</span>}
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              {currentQuestion?.answers.map((answer, index) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-xl text-lg font-semibold text-white text-center shadow-lg transition-all ${
-                    currentQuestion?.correct_index === index
-                      ? `${answerBgColors[index]} ring-4 ring-white scale-105`
-                      : selectedAnswer === index
-                        ? 'bg-red-400 opacity-75'
-                        : 'bg-gray-400 opacity-50'
-                  }`}
-                >
-                  {answer}
-                  {currentQuestion?.correct_index === index && <span className="ml-2">✅</span>}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Current Score */}
-          <div className="card p-4 text-center">
-            <p className="text-gray-500 text-sm">Dein Punktestand</p>
-            <p className="text-3xl font-bold text-[#022d94]">{currentPlayer?.score}</p>
+          {/* Your Position */}
+          <div className="bg-[#ffbb1e] rounded-xl p-4 mb-4 text-center">
+            <p className="text-[#022d94] text-sm font-medium">Dein aktueller Platz</p>
+            <p className="text-4xl font-bold text-[#022d94]">
+              {currentRank === 1 ? '🥇' : currentRank === 2 ? '🥈' : currentRank === 3 ? '🥉' : `#${currentRank}`}
+            </p>
+            <p className="text-[#022d94] font-semibold">{currentPlayer?.score} Punkte</p>
           </div>
 
-          <p className="text-center text-gray-500 mt-6 animate-pulse">
+          {/* Scoreboard */}
+          <div className="card p-4 flex-1">
+            <h3 className="text-lg font-bold text-[#022d94] mb-3 text-center">📊 Zwischenstand</h3>
+            <div className="space-y-2">
+              {players.slice(0, 5).map((player, index) => (
+                <div 
+                  key={player.id} 
+                  className={`flex justify-between items-center p-3 rounded-lg ${
+                    player.id === currentPlayer?.id 
+                      ? 'bg-[#ffbb1e]' 
+                      : index === 0 ? 'bg-yellow-100' : 'bg-gray-100'
+                  }`}
+                  style={{
+                    animation: 'slideIn 0.4s ease-out forwards',
+                    animationDelay: `${index * 0.08}s`,
+                    opacity: 0
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-[#022d94]">
+                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
+                    </span>
+                    <span className={`font-medium ${player.id === currentPlayer?.id ? 'text-[#022d94] font-bold' : 'text-[#022d94]'}`}>
+                      {player.nickname}
+                    </span>
+                  </div>
+                  <span className="text-[#022d94] font-bold">{player.score}</span>
+                </div>
+              ))}
+              {players.length > 5 && currentRank > 5 && (
+                <div className="text-center text-gray-500 text-sm py-2">
+                  ... und {players.length - 5} weitere
+                </div>
+              )}
+            </div>
+          </div>
+
+          <p className="text-center text-white/70 mt-4 animate-pulse text-sm">
             Warte auf nächste Frage...
           </p>
         </main>
+
+        <style jsx>{`
+          @keyframes slideIn {
+            from {
+              opacity: 0;
+              transform: translateX(-20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateX(0);
+            }
+          }
+        `}</style>
       </div>
     )
   }
