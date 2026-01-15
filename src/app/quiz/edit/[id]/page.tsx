@@ -20,6 +20,7 @@ export default function EditQuiz() {
   const quizId = params.id as string
 
   const [title, setTitle] = useState('')
+  const [gamification, setGamification] = useState(true)
   const [questions, setQuestions] = useState<QuestionInput[]>([])
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -52,6 +53,7 @@ export default function EditQuiz() {
     }
 
     setTitle(quiz.title)
+    setGamification(quiz.gamification ?? true)
 
     // Load questions
     const { data: questionsData } = await supabase
@@ -190,10 +192,10 @@ export default function EditQuiz() {
     setSaving(true)
 
     try {
-      // Update quiz title
+      // Update quiz title and gamification
       const { error: quizError } = await supabase
         .from('quizzes')
-        .update({ title })
+        .update({ title, gamification })
         .eq('id', quizId)
 
       if (quizError) throw quizError
@@ -272,6 +274,39 @@ export default function EditQuiz() {
               placeholder="z.B. Allgemeinwissen"
               className="input-field"
             />
+          </div>
+
+          {/* Gamification Toggle */}
+          <div className="card p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-[#022d94] font-semibold">🎮 Gamification-Modus</label>
+                <p className="text-gray-500 text-sm mt-1">
+                  Mehr Emojis, Animationen und Farben für ein spielerisches Erlebnis
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGamification(!gamification)}
+                className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${
+                  gamification ? 'bg-[#ffbb1e]' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ${
+                    gamification ? 'translate-x-7' : 'translate-x-1'
+                  }`}
+                />
+                {gamification && (
+                  <span className="absolute top-1/2 left-1 -translate-y-1/2 text-xs">🚀</span>
+                )}
+              </button>
+            </div>
+            {gamification && (
+              <div className="mt-3 p-3 bg-[#ffbb1e]/20 rounded-lg text-sm text-[#022d94]">
+                ✨ Spieler sehen: Raketen-Animationen, bunte Effekte, Konfetti und mehr Emojis!
+              </div>
+            )}
           </div>
 
           {/* Questions */}

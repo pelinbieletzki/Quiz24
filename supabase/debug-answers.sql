@@ -30,6 +30,13 @@ ALTER TABLE game_sessions
 ADD COLUMN IF NOT EXISTS answer_revealed BOOLEAN DEFAULT false;
 
 -- ============================================
+-- SCHRITT 5: Füge gamification Spalte hinzu
+-- (für den Gamification-Modus)
+-- ============================================
+ALTER TABLE quizzes 
+ADD COLUMN IF NOT EXISTS gamification BOOLEAN DEFAULT true;
+
+-- ============================================
 -- DEBUG QUERIES (optional)
 -- ============================================
 

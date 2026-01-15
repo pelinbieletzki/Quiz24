@@ -23,6 +23,7 @@ export default function PlayGame() {
   const [lastQuestionIndex, setLastQuestionIndex] = useState(-1)
   const [pointsEarned, setPointsEarned] = useState(0)
   const [estimateInitialized, setEstimateInitialized] = useState(false)
+  const [gamification, setGamification] = useState(true)
 
   const loadGameData = useCallback(async () => {
     const { data: sessionData } = await supabase
@@ -80,6 +81,17 @@ export default function PlayGame() {
       .order('order_index')
 
     setQuestions(questionsData || [])
+
+    // Load gamification setting from quiz
+    const { data: quizData } = await supabase
+      .from('quizzes')
+      .select('gamification')
+      .eq('id', sessionData.quiz_id)
+      .single()
+    
+    if (quizData) {
+      setGamification(quizData.gamification ?? true)
+    }
     
     // Set initial estimate value ONLY ONCE when question changes
     if (questionsData && questionsData[sessionData.current_question]?.question_type === 'estimate' && !estimateInitialized && !hasAnswered) {
@@ -443,6 +455,19 @@ export default function PlayGame() {
             }
           }
           
+          @keyframes float {
+            0%, 100% {
+              transform: translateY(0) rotate(0deg);
+            }
+            50% {
+              transform: translateY(-15px) rotate(3deg);
+            }
+          }
+          
+          .animate-float {
+            animation: float 3s ease-in-out infinite;
+          }
+          
           @keyframes rocketFly {
             0% {
               transform: translateY(100vh) rotate(45deg);
@@ -504,22 +529,42 @@ export default function PlayGame() {
   // WAITING SCREEN after answering, before reveal
   if (hasAnswered && !isRevealed) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#022d94] to-[#0364c1] flex flex-col">
+      <div className={`min-h-screen flex flex-col ${gamification ? 'bg-gradient-to-b from-[#022d94] via-purple-700 to-[#0364c1]' : 'bg-gradient-to-b from-[#022d94] to-[#0364c1]'}`}>
+        {gamification && (
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {[...Array(15)].map((_, i) => (
+              <div
+                key={i}
+                className="absolute text-3xl animate-float"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 3}s`,
+                  animationDuration: `${2 + Math.random() * 2}s`
+                }}
+              >
+                {['🎯', '⭐', '💫', '✨', '🌟', '🔥', '🎮', '⚡'][i % 8]}
+              </div>
+            ))}
+          </div>
+        )}
         <Header />
         
-        <main className="flex-1 flex flex-col items-center justify-center px-4">
-          <div className="card p-8 text-center max-w-md">
-            <div className="text-6xl mb-6 animate-pulse">⏳</div>
+        <main className="flex-1 flex flex-col items-center justify-center px-4 relative z-10">
+          <div className={`card p-8 text-center max-w-md ${gamification ? 'border-2 border-[#ffbb1e]' : ''}`}>
+            <div className={`text-6xl mb-6 ${gamification ? 'animate-bounce' : 'animate-pulse'}`}>
+              {gamification ? '🎉' : '⏳'}
+            </div>
             <h2 className="text-2xl font-bold text-[#022d94] mb-4">
-              Antwort abgegeben!
+              {gamification ? '✅ Super! ' : ''}Antwort abgegeben!{gamification ? ' ✅' : ''}
             </h2>
             {currentQuestion?.question_type === 'estimate' ? (
               <p className="text-gray-600 mb-4">
-                Deine Schätzung: <span className="font-bold text-[#022d94]">{selectedAnswer}</span>
+                {gamification ? '🔢 ' : ''}Deine Schätzung: <span className="font-bold text-[#022d94]">{selectedAnswer}</span>
               </p>
             ) : (
               <p className="text-gray-600 mb-4">
-                Du hast gewählt: <span className="font-bold text-[#022d94]">
+                {gamification ? '👆 ' : ''}Du hast gewählt: <span className="font-bold text-[#022d94]">
                   {currentQuestion?.question_type === 'true_false'
                     ? selectedAnswer === 0 ? 'Wahr' : 'Falsch'
                     : currentQuestion?.answers[selectedAnswer || 0]
@@ -656,30 +701,47 @@ export default function PlayGame() {
 
   // ANSWERING SCREEN - Show question and answer options
   return (
-    <div className="min-h-screen bg-[#f5f7fa] flex flex-col">
+    <div className={`min-h-screen flex flex-col ${gamification ? 'bg-gradient-to-br from-[#f5f7fa] via-blue-50 to-purple-50' : 'bg-[#f5f7fa]'}`}>
+      {gamification && (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute text-3xl opacity-30 animate-pulse"
+              style={{
+                left: `${15 + i * 15}%`,
+                top: `${25 + (i % 2) * 50}%`,
+                animationDelay: `${i * 0.4}s`
+              }}
+            >
+              {['🎯', '⚡', '🔥', '💫', '🎮', '🏆'][i]}
+            </div>
+          ))}
+        </div>
+      )}
       <Header />
       
-      <main className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-4 py-4">
+      <main className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-4 py-4 relative z-10">
         {/* Header Info */}
         <div className="flex justify-between items-center mb-4">
           <div className="text-[#022d94]">
-            <span className="text-gray-500">Frage</span>{' '}
+            <span className="text-gray-500">{gamification ? '🎯 ' : ''}Frage</span>{' '}
             <span className="text-xl font-bold">{(session?.current_question || 0) + 1}</span>
             <span className="text-gray-500">/{questions.length}</span>
           </div>
-          <div className={`text-3xl font-bold ${timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-[#022d94]'}`}>
-            {timeLeft}s
+          <div className={`text-3xl font-bold ${timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-[#022d94]'} ${gamification && timeLeft <= 5 ? 'animate-bounce' : ''}`}>
+            {gamification && timeLeft <= 5 ? '⏰ ' : ''}{timeLeft}s
           </div>
           <div className="text-[#022d94]">
-            <span className="text-gray-500">Punkte:</span>{' '}
+            <span className="text-gray-500">{gamification ? '💰 ' : ''}Punkte:</span>{' '}
             <span className="font-bold">{currentPlayer?.score}</span>
           </div>
         </div>
 
         {/* Question */}
-        <div className="card p-6 mb-4">
+        <div className={`card p-6 mb-4 ${gamification ? 'border-2 border-[#ffbb1e] shadow-lg shadow-yellow-200/30' : ''}`}>
           <h2 className="text-xl font-bold text-[#022d94] text-center">
-            {currentQuestion?.question_text}
+            {gamification ? '❓ ' : ''}{currentQuestion?.question_text}{gamification ? ' ❓' : ''}
           </h2>
         </div>
 

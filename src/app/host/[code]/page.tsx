@@ -21,6 +21,7 @@ export default function HostGame() {
   const [loading, setLoading] = useState(true)
   const [timeLeft, setTimeLeft] = useState(15)
   const [previousRanks, setPreviousRanks] = useState<Record<string, number>>({})
+  const [gamification, setGamification] = useState(true)
 
   const loadGameData = useCallback(async () => {
     const { data: sessionData } = await supabase
@@ -43,6 +44,17 @@ export default function HostGame() {
       .order('order_index')
 
     setQuestions(questionsData || [])
+
+    // Load gamification setting from quiz
+    const { data: quizData } = await supabase
+      .from('quizzes')
+      .select('gamification')
+      .eq('id', sessionData.quiz_id)
+      .single()
+    
+    if (quizData) {
+      setGamification(quizData.gamification ?? true)
+    }
 
     const { data: playersData } = await supabase
       .from('players')
@@ -251,18 +263,23 @@ export default function HostGame() {
 
           <div className="card p-6 mb-6">
             <h2 className="text-xl font-semibold text-[#022d94] mb-4">
-              Spieler ({players.length})
+              {gamification ? '🎮 ' : ''}Spieler ({players.length}){gamification ? ' 🎮' : ''}
             </h2>
             {players.length === 0 ? (
-              <p className="text-gray-500">Noch keine Spieler beigetreten...</p>
+              <p className="text-gray-500">{gamification ? '👀 ' : ''}Noch keine Spieler beigetreten...</p>
             ) : (
               <div className="flex flex-wrap justify-center gap-3">
-                {players.map((player) => (
+                {players.map((player, index) => (
                   <span
                     key={player.id}
-                    className="px-4 py-2 bg-[#022d94] text-white rounded-full font-medium"
+                    className={`px-4 py-2 text-white rounded-full font-medium ${
+                      gamification 
+                        ? 'animate-bounce bg-gradient-to-r from-[#022d94] to-[#0364c1]' 
+                        : 'bg-[#022d94]'
+                    }`}
+                    style={gamification ? { animationDelay: `${index * 0.1}s` } : {}}
                   >
-                    {player.nickname}
+                    {gamification && ['🦸', '🧙', '🦹', '🤖', '👾', '🎯', '⭐', '🔥'][index % 8]} {player.nickname}
                   </span>
                 ))}
               </div>
@@ -272,9 +289,13 @@ export default function HostGame() {
           <button
             onClick={startGame}
             disabled={players.length === 0}
-            className="btn-secondary text-xl px-10 py-4 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`text-xl px-10 py-4 disabled:opacity-50 disabled:cursor-not-allowed ${
+              gamification 
+                ? 'btn-secondary animate-pulse hover:animate-none' 
+                : 'btn-secondary'
+            }`}
           >
-            🚀 Spiel starten
+            {gamification ? '🚀✨ ' : '🚀 '}Spiel starten{gamification ? ' ✨🚀' : ''}
           </button>
         </main>
       </div>
@@ -429,7 +450,27 @@ export default function HostGame() {
   // SCOREBOARD VIEW - After answer is revealed
   if (isRevealed) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#022d94] to-[#0364c1]">
+      <div className={`min-h-screen ${gamification ? 'bg-gradient-to-b from-[#022d94] via-[#0364c1] to-purple-600' : 'bg-gradient-to-b from-[#022d94] to-[#0364c1]'}`}>
+        {gamification && (
+          <>
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              {[...Array(20)].map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute text-2xl animate-float"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                    animationDelay: `${Math.random() * 3}s`,
+                    animationDuration: `${3 + Math.random() * 2}s`
+                  }}
+                >
+                  {['⭐', '✨', '💫', '🌟', '🎯', '🔥'][i % 6]}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
         <Header 
           showProfile
           rightContent={
@@ -442,26 +483,30 @@ export default function HostGame() {
           }
         />
         
-        <main className="max-w-2xl mx-auto px-4 py-6">
+        <main className="max-w-2xl mx-auto px-4 py-6 relative z-10">
           {/* Question Result Summary */}
           <div className="text-center mb-6">
-            <p className="text-white/70 text-lg">Frage {(session?.current_question || 0) + 1} von {questions.length}</p>
+            <p className="text-white/70 text-lg">
+              {gamification ? '🎯 ' : ''}Frage {(session?.current_question || 0) + 1} von {questions.length}{gamification ? ' 🎯' : ''}
+            </p>
             <h2 className="text-xl font-semibold text-white mt-2 mb-4">
               {currentQuestion?.question_text}
             </h2>
-            <div className="inline-block bg-green-500 text-white px-6 py-3 rounded-xl font-bold text-lg">
-              ✓ Richtig: {currentQuestion?.question_type === 'estimate' 
+            <div className={`inline-block bg-green-500 text-white px-6 py-3 rounded-xl font-bold text-lg ${gamification ? 'animate-pulse' : ''}`}>
+              {gamification ? '🎉 ' : ''}✓ Richtig: {currentQuestion?.question_type === 'estimate' 
                 ? currentQuestion.answers[2]
                 : currentQuestion?.question_type === 'true_false'
                   ? currentQuestion?.correct_index === 0 ? 'Wahr' : 'Falsch'
                   : currentQuestion?.answers[currentQuestion?.correct_index || 0]
-              }
+              }{gamification ? ' 🎉' : ''}
             </div>
           </div>
 
           {/* Animated Leaderboard */}
           <div className="card p-6 mb-6">
-            <h3 className="text-2xl font-bold text-[#022d94] mb-6 text-center">📊 Zwischenstand</h3>
+            <h3 className="text-2xl font-bold text-[#022d94] mb-6 text-center">
+              {gamification ? '🏆🔥 ' : '📊 '}Zwischenstand{gamification ? ' 🔥🏆' : ''}
+            </h3>
             <div className="space-y-3">
               {players.map((player, index) => {
                 const moved = player.previousRank !== undefined && player.previousRank !== index
@@ -471,27 +516,32 @@ export default function HostGame() {
                   <div 
                     key={player.id} 
                     className={`flex justify-between items-center p-4 rounded-xl transition-all duration-700 ease-out ${
-                      index === 0 ? 'bg-[#ffbb1e] scale-105' : 
+                      index === 0 ? (gamification ? 'bg-gradient-to-r from-[#ffbb1e] to-orange-400 scale-105' : 'bg-[#ffbb1e] scale-105') : 
                       index === 1 ? 'bg-gray-200' :
                       index === 2 ? 'bg-orange-100' :
                       'bg-gray-100'
                     }`}
                     style={{
-                      animation: 'slideIn 0.5s ease-out forwards',
+                      animation: gamification ? 'bounceIn 0.5s ease-out forwards' : 'slideIn 0.5s ease-out forwards',
                       animationDelay: `${index * 0.1}s`,
                       opacity: 0
                     }}
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">
-                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
+                        {index === 0 ? (gamification ? '👑🥇' : '🥇') : 
+                         index === 1 ? '🥈' : 
+                         index === 2 ? '🥉' : 
+                         `${index + 1}.`}
                       </span>
                       <span className="text-[#022d94] font-semibold text-lg">{player.nickname}</span>
                       {moved && movedUp && (
-                        <span className="text-green-500 font-bold animate-bounce">▲</span>
+                        <span className={`text-green-500 font-bold ${gamification ? 'animate-bounce' : ''}`}>▲{gamification ? '🚀' : ''}</span>
                       )}
                     </div>
-                    <span className="text-[#022d94] font-bold text-xl">{player.score}</span>
+                    <span className="text-[#022d94] font-bold text-xl">
+                      {gamification && index === 0 ? '💰 ' : ''}{player.score}{gamification ? ' Pkt' : ''}
+                    </span>
                   </div>
                 )
               })}
@@ -518,6 +568,34 @@ export default function HostGame() {
               transform: translateX(0);
             }
           }
+          @keyframes bounceIn {
+            0% {
+              opacity: 0;
+              transform: scale(0.3) translateY(-20px);
+            }
+            50% {
+              opacity: 1;
+              transform: scale(1.05) translateY(5px);
+            }
+            70% {
+              transform: scale(0.95) translateY(-3px);
+            }
+            100% {
+              opacity: 1;
+              transform: scale(1) translateY(0);
+            }
+          }
+          @keyframes float {
+            0%, 100% {
+              transform: translateY(0) rotate(0deg);
+            }
+            50% {
+              transform: translateY(-20px) rotate(5deg);
+            }
+          }
+          .animate-float {
+            animation: float 3s ease-in-out infinite;
+          }
         `}</style>
       </div>
     )
@@ -525,7 +603,24 @@ export default function HostGame() {
 
   // QUESTION VIEW - During answering (no scoreboard)
   return (
-    <div className="min-h-screen bg-[#f5f7fa]">
+    <div className={`min-h-screen ${gamification ? 'bg-gradient-to-br from-[#f5f7fa] via-blue-50 to-purple-50' : 'bg-[#f5f7fa]'}`}>
+      {gamification && (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute text-4xl opacity-20 animate-pulse"
+              style={{
+                left: `${10 + i * 12}%`,
+                top: `${20 + (i % 3) * 30}%`,
+                animationDelay: `${i * 0.3}s`
+              }}
+            >
+              {['🎯', '⚡', '🔥', '💫', '🌟', '✨', '🎮', '🏆'][i]}
+            </div>
+          ))}
+        </div>
+      )}
       <Header 
         showProfile
         rightContent={
@@ -538,29 +633,30 @@ export default function HostGame() {
         }
       />
       
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-4xl mx-auto px-4 py-6 relative z-10">
         {/* Progress Bar */}
         <div className="flex justify-between items-center mb-4">
           <div className="text-[#022d94]">
-            <span className="text-gray-500">Frage</span>{' '}
+            <span className="text-gray-500">{gamification ? '🎯 ' : ''}Frage</span>{' '}
             <span className="text-2xl font-bold">{(session?.current_question || 0) + 1}</span>
             <span className="text-gray-500"> / {questions.length}</span>
           </div>
           
-          <div className={`text-4xl font-bold ${timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-[#022d94]'}`}>
-            {timeLeft}s
+          <div className={`text-4xl font-bold ${timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-[#022d94]'} ${gamification && timeLeft <= 5 ? 'scale-110 animate-bounce' : ''}`}>
+            {gamification && timeLeft <= 5 ? '⏰ ' : ''}{timeLeft}s
           </div>
           
           <div className="text-[#022d94]">
-            <span className="text-gray-500">Antworten:</span>{' '}
+            <span className="text-gray-500">{gamification ? '👥 ' : ''}Antworten:</span>{' '}
             <span className="text-xl font-bold">{answeredCount}/{players.length}</span>
+            {gamification && answeredCount > 0 && <span className="ml-1">✅</span>}
           </div>
         </div>
 
         {/* Question */}
-        <div className="card p-8 mb-6">
+        <div className={`card p-8 mb-6 ${gamification ? 'border-2 border-[#ffbb1e] shadow-lg shadow-yellow-200/30' : ''}`}>
           <h2 className="text-2xl font-bold text-[#022d94] text-center">
-            {currentQuestion?.question_text}
+            {gamification ? '❓ ' : ''}{currentQuestion?.question_text}{gamification ? ' ❓' : ''}
           </h2>
         </div>
 

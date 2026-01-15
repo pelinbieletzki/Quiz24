@@ -10,6 +10,7 @@ export interface Quiz {
   id: string
   creator_id: string
   title: string
+  gamification: boolean
   created_at: string
 }
 
