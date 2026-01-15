@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase, GameSession, Question, Player } from '@/lib/supabase'
 import { useParams } from 'next/navigation'
 import Header from '@/components/Header'
+import { QRCodeSVG } from 'qrcode.react'
 
 export default function HostGame() {
   const params = useParams()
@@ -121,6 +122,10 @@ export default function HostGame() {
 
   // LOBBY VIEW
   if (session?.status === 'lobby') {
+    const joinUrl = typeof window !== 'undefined' 
+      ? `${window.location.origin}/play/${code}` 
+      : `/play/${code}`
+
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#022d94] to-[#0364c1]">
         <Header showProfile />
@@ -129,13 +134,45 @@ export default function HostGame() {
           <h1 className="text-3xl font-bold text-white mb-6">Warte auf Spieler...</h1>
           
           <div className="card p-8 mb-6">
-            <p className="text-gray-600 mb-3">Teile diesen Code:</p>
-            <div className="text-5xl font-mono font-bold text-[#022d94] tracking-widest bg-[#ffbb1e] rounded-xl py-4 px-6 inline-block">
-              {code}
+            <div className="flex flex-col md:flex-row items-center justify-center gap-8">
+              {/* QR Code */}
+              <div className="flex flex-col items-center">
+                <p className="text-gray-600 mb-3">QR-Code scannen:</p>
+                <div className="bg-white p-4 rounded-xl shadow-inner">
+                  <QRCodeSVG 
+                    value={joinUrl} 
+                    size={160}
+                    level="M"
+                    includeMargin={false}
+                    bgColor="#ffffff"
+                    fgColor="#022d94"
+                  />
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="hidden md:flex flex-col items-center">
+                <div className="h-32 w-px bg-gray-300"></div>
+                <span className="text-gray-400 text-sm py-2">oder</span>
+                <div className="h-32 w-px bg-gray-300"></div>
+              </div>
+              <div className="md:hidden flex items-center w-full">
+                <div className="flex-1 h-px bg-gray-300"></div>
+                <span className="text-gray-400 text-sm px-4">oder</span>
+                <div className="flex-1 h-px bg-gray-300"></div>
+              </div>
+
+              {/* Code */}
+              <div className="flex flex-col items-center">
+                <p className="text-gray-600 mb-3">Code eingeben:</p>
+                <div className="text-5xl font-mono font-bold text-[#022d94] tracking-widest bg-[#ffbb1e] rounded-xl py-4 px-6">
+                  {code}
+                </div>
+                <p className="text-gray-500 mt-3 text-sm">
+                  auf <span className="text-[#0364c1] font-semibold">/join</span>
+                </p>
+              </div>
             </div>
-            <p className="text-gray-500 mt-4 text-sm">
-              Spieler gehen zu <span className="text-[#0364c1] font-semibold">/join</span> und geben den Code ein
-            </p>
           </div>
 
           <div className="card p-6 mb-6">
