@@ -99,6 +99,24 @@ export default function HostGame() {
     }
   }, [session?.status, session?.question_start_time, session?.answer_revealed])
 
+  // Auto-reveal when all players have answered or time is up
+  useEffect(() => {
+    const allAnswered = answeredCount >= players.length && players.length > 0
+    const timeUp = timeLeft === 0
+    
+    if (session?.status === 'playing' && !session?.answer_revealed && (allAnswered || timeUp)) {
+      // Auto-reveal after a short delay
+      const timeout = setTimeout(async () => {
+        await supabase
+          .from('game_sessions')
+          .update({ answer_revealed: true })
+          .eq('id', session?.id)
+      }, 500)
+      
+      return () => clearTimeout(timeout)
+    }
+  }, [answeredCount, players.length, timeLeft, session?.status, session?.answer_revealed, session?.id])
+
   const startGame = async () => {
     await supabase
       .from('game_sessions')

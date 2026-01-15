@@ -18,6 +18,7 @@ export default function PlayGame() {
   const [loading, setLoading] = useState(true)
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [estimateValue, setEstimateValue] = useState<number>(50)
+  const [hasInteractedWithSlider, setHasInteractedWithSlider] = useState(false)
   const [hasAnswered, setHasAnswered] = useState(false)
   const [timeLeft, setTimeLeft] = useState(15)
   const [lastQuestionIndex, setLastQuestionIndex] = useState(-1)
@@ -36,33 +37,33 @@ export default function PlayGame() {
       return
     }
     
-    // Reset state when question changes
-    if (sessionData.current_question !== lastQuestionIndex) {
-      setHasAnswered(false)
-      setSelectedAnswer(null)
-      setPointsEarned(0)
-      setLastQuestionIndex(sessionData.current_question)
-    }
-    
-    setSession(sessionData)
-
+    // Load questions
     const { data: questionsData } = await supabase
       .from('questions')
       .select('*')
       .eq('quiz_id', sessionData.quiz_id)
       .order('order_index')
-
+    
     setQuestions(questionsData || [])
     
-    // Set initial estimate value when question changes
-    if (questionsData && questionsData[sessionData.current_question]?.question_type === 'estimate') {
-      const q = questionsData[sessionData.current_question]
-      const min = parseFloat(q.answers[0])
-      const max = parseFloat(q.answers[1])
-      if (!hasAnswered) {
+    // Reset state when question changes
+    if (sessionData.current_question !== lastQuestionIndex) {
+      setHasAnswered(false)
+      setSelectedAnswer(null)
+      setPointsEarned(0)
+      setHasInteractedWithSlider(false)
+      setLastQuestionIndex(sessionData.current_question)
+      
+      // Set initial estimate value only when question changes
+      if (questionsData && questionsData[sessionData.current_question]?.question_type === 'estimate') {
+        const q = questionsData[sessionData.current_question]
+        const min = parseFloat(q.answers[0])
+        const max = parseFloat(q.answers[1])
         setEstimateValue(Math.round((min + max) / 2))
       }
     }
+    
+    setSession(sessionData)
 
     const { data: playersData } = await supabase
       .from('players')
@@ -78,7 +79,7 @@ export default function PlayGame() {
     }
 
     setLoading(false)
-  }, [code, currentPlayer, lastQuestionIndex, hasAnswered])
+  }, [code, currentPlayer, lastQuestionIndex])
 
   useEffect(() => {
     loadGameData()
@@ -581,7 +582,10 @@ export default function PlayGame() {
                 min={parseFloat(currentQuestion.answers[0])}
                 max={parseFloat(currentQuestion.answers[1])}
                 value={estimateValue}
-                onChange={(e) => setEstimateValue(parseInt(e.target.value))}
+                onChange={(e) => {
+                  setEstimateValue(parseInt(e.target.value))
+                  setHasInteractedWithSlider(true)
+                }}
                 className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#022d94]"
               />
               
