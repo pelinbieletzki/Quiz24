@@ -48,7 +48,9 @@ CREATE TABLE player_answers (
   question_id UUID REFERENCES questions(id) ON DELETE CASCADE,
   answer_index INT,
   response_time_ms INT,
-  points_earned INT DEFAULT 0
+  points_earned INT DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(player_id, question_id) -- Prevent duplicate answers
 );
 
 -- Enable Row Level Security

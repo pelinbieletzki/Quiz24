@@ -152,11 +152,26 @@ export default function PlayGame() {
   const submitAnswer = async (answerIndex: number) => {
     if (hasAnswered || !session || !currentPlayer) return
     
+    const currentQuestion = questions[session.current_question]
+    if (!currentQuestion) return
+    
+    // Check if already answered (double-check against database)
+    const { data: existingCheck } = await supabase
+      .from('player_answers')
+      .select('id')
+      .eq('player_id', currentPlayer.id)
+      .eq('question_id', currentQuestion.id)
+      .single()
+    
+    if (existingCheck) {
+      setHasAnswered(true)
+      return // Already answered, don't insert again
+    }
+    
     setSelectedAnswer(answerIndex)
     setHasAnswered(true)
 
-    const currentQuestion = questions[session.current_question]
-    const isCorrect = answerIndex === currentQuestion?.correct_index
+    const isCorrect = answerIndex === currentQuestion.correct_index
     
     const responseTime = session.question_start_time 
       ? Date.now() - new Date(session.question_start_time).getTime()
@@ -184,10 +199,25 @@ export default function PlayGame() {
   const submitEstimate = async () => {
     if (hasAnswered || !session || !currentPlayer) return
     
+    const currentQuestion = questions[session.current_question]
+    if (!currentQuestion) return
+    
+    // Check if already answered (double-check against database)
+    const { data: existingCheck } = await supabase
+      .from('player_answers')
+      .select('id')
+      .eq('player_id', currentPlayer.id)
+      .eq('question_id', currentQuestion.id)
+      .single()
+    
+    if (existingCheck) {
+      setHasAnswered(true)
+      return // Already answered, don't insert again
+    }
+    
     setSelectedAnswer(estimateValue)
     setHasAnswered(true)
 
-    const currentQuestion = questions[session.current_question]
     const correctValue = parseFloat(currentQuestion.answers[2])
     const min = parseFloat(currentQuestion.answers[0])
     const max = parseFloat(currentQuestion.answers[1])
