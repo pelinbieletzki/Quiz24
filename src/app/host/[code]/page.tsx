@@ -253,12 +253,34 @@ export default function HostGame() {
         </div>
 
         {/* Answers */}
-        {currentQuestion?.question_type === 'true_false' ? (
+        {currentQuestion?.question_type === 'estimate' ? (
+          <div className="card p-6 mb-6">
+            <div className="text-center mb-4">
+              <span className="text-lg text-gray-500">Bereich:</span>
+              <div className="text-2xl font-bold text-[#022d94] mt-1">
+                {currentQuestion.answers[0]} — {currentQuestion.answers[1]}
+              </div>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-4 relative">
+              <div 
+                className="absolute h-4 w-4 bg-green-500 rounded-full top-0 transform -translate-x-1/2"
+                style={{ 
+                  left: `${((parseFloat(currentQuestion.answers[2]) - parseFloat(currentQuestion.answers[0])) / (parseFloat(currentQuestion.answers[1]) - parseFloat(currentQuestion.answers[0]))) * 100}%` 
+                }}
+              />
+            </div>
+            <div className="flex justify-between text-sm text-gray-500 mt-2">
+              <span>{currentQuestion.answers[0]}</span>
+              <span className="text-green-600 font-semibold">Richtig: {currentQuestion.answers[2]}</span>
+              <span>{currentQuestion.answers[1]}</span>
+            </div>
+          </div>
+        ) : currentQuestion?.question_type === 'true_false' ? (
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-green-500 p-6 rounded-xl text-xl font-bold text-white text-center shadow-lg">
+            <div className={`p-6 rounded-xl text-xl font-bold text-white text-center shadow-lg ${currentQuestion?.correct_index === 0 ? 'bg-green-500 ring-4 ring-green-300' : 'bg-green-500/60'}`}>
               ✓ Wahr
             </div>
-            <div className="bg-red-500 p-6 rounded-xl text-xl font-bold text-white text-center shadow-lg">
+            <div className={`p-6 rounded-xl text-xl font-bold text-white text-center shadow-lg ${currentQuestion?.correct_index === 1 ? 'bg-red-500 ring-4 ring-red-300' : 'bg-red-500/60'}`}>
               ✗ Falsch
             </div>
           </div>
@@ -267,7 +289,7 @@ export default function HostGame() {
             {currentQuestion?.answers.map((answer, index) => (
               <div
                 key={index}
-                className={`${answerColors[index]} p-6 rounded-xl text-xl font-semibold text-white text-center shadow-lg`}
+                className={`${answerColors[index]} p-6 rounded-xl text-xl font-semibold text-white text-center shadow-lg ${currentQuestion?.correct_index === index ? 'ring-4 ring-white' : 'opacity-80'}`}
               >
                 {answer}
               </div>

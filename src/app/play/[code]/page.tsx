@@ -17,6 +17,7 @@ export default function PlayGame() {
   const [joined, setJoined] = useState(false)
   const [loading, setLoading] = useState(true)
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
+  const [estimateValue, setEstimateValue] = useState<number>(50)
   const [hasAnswered, setHasAnswered] = useState(false)
   const [timeLeft, setTimeLeft] = useState(15)
   const [lastQuestionIndex, setLastQuestionIndex] = useState(-1)
@@ -49,6 +50,14 @@ export default function PlayGame() {
       .order('order_index')
 
     setQuestions(questionsData || [])
+    
+    // Set initial estimate value when question changes
+    if (questionsData && questionsData[sessionData.current_question]?.question_type === 'estimate') {
+      const q = questionsData[sessionData.current_question]
+      const min = parseFloat(q.answers[0])
+      const max = parseFloat(q.answers[1])
+      setEstimateValue(Math.round((min + max) / 2))
+    }
 
     const { data: playersData } = await supabase
       .from('players')
@@ -129,6 +138,45 @@ export default function PlayGame() {
       player_id: currentPlayer.id,
       question_id: currentQuestion.id,
       answer_index: answerIndex,
+      response_time_ms: responseTime,
+      points_earned: points
+    })
+
+    await supabase
+      .from('players')
+      .update({ score: currentPlayer.score + points })
+      .eq('id', currentPlayer.id)
+
+    setCurrentPlayer({ ...currentPlayer, score: currentPlayer.score + points })
+  }
+
+  const submitEstimate = async () => {
+    if (hasAnswered || !session || !currentPlayer) return
+    
+    setSelectedAnswer(estimateValue)
+    setHasAnswered(true)
+
+    const currentQuestion = questions[session.current_question]
+    const correctValue = parseFloat(currentQuestion.answers[2])
+    const min = parseFloat(currentQuestion.answers[0])
+    const max = parseFloat(currentQuestion.answers[1])
+    
+    // Calculate points based on how close the estimate is
+    const range = max - min
+    const difference = Math.abs(estimateValue - correctValue)
+    const accuracy = 1 - (difference / range)
+    
+    const responseTime = session.question_start_time 
+      ? Date.now() - new Date(session.question_start_time).getTime()
+      : 15000
+    
+    // Points: accuracy (0-1) * time bonus (100-1000)
+    const points = Math.round(accuracy * Math.max(100, 1000 - (responseTime / 15)))
+
+    await supabase.from('player_answers').insert({
+      player_id: currentPlayer.id,
+      question_id: currentQuestion.id,
+      answer_index: estimateValue,
       response_time_ms: responseTime,
       points_earned: points
     })
@@ -318,15 +366,57 @@ export default function PlayGame() {
         {hasAnswered ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center card p-8">
-              <div className="text-6xl mb-4">
-                {selectedAnswer === currentQuestion?.correct_index ? '✅' : '❌'}
+              {currentQuestion?.question_type === 'estimate' ? (
+                <>
+                  <div className="text-4xl mb-4">📊</div>
+                  <p className="text-lg text-[#022d94] font-semibold">
+                    Deine Schätzung: {selectedAnswer}
+                  </p>
+                  <p className="text-gray-500 mt-2">Warte auf die Auflösung...</p>
+                </>
+              ) : (
+                <>
+                  <div className="text-6xl mb-4">
+                    {selectedAnswer === currentQuestion?.correct_index ? '✅' : '❌'}
+                  </div>
+                  <p className="text-xl text-[#022d94] font-semibold">
+                    {selectedAnswer === currentQuestion?.correct_index 
+                      ? 'Richtig!' 
+                      : 'Leider falsch'}
+                  </p>
+                  <p className="text-gray-500 mt-2">Warte auf die nächste Frage...</p>
+                </>
+              )}
+            </div>
+          </div>
+        ) : currentQuestion?.question_type === 'estimate' ? (
+          // Estimate Question with Slider
+          <div className="flex-1 flex flex-col justify-center">
+            <div className="card p-6">
+              <div className="text-center mb-4">
+                <span className="text-4xl font-bold text-[#022d94]">{estimateValue}</span>
               </div>
-              <p className="text-xl text-[#022d94] font-semibold">
-                {selectedAnswer === currentQuestion?.correct_index 
-                  ? 'Richtig!' 
-                  : 'Leider falsch'}
-              </p>
-              <p className="text-gray-500 mt-2">Warte auf die nächste Frage...</p>
+              
+              <input
+                type="range"
+                min={parseFloat(currentQuestion.answers[0])}
+                max={parseFloat(currentQuestion.answers[1])}
+                value={estimateValue}
+                onChange={(e) => setEstimateValue(parseInt(e.target.value))}
+                className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#022d94]"
+              />
+              
+              <div className="flex justify-between text-sm text-gray-500 mt-2">
+                <span>{currentQuestion.answers[0]}</span>
+                <span>{currentQuestion.answers[1]}</span>
+              </div>
+
+              <button
+                onClick={submitEstimate}
+                className="w-full mt-6 py-4 bg-[#ffbb1e] text-[#022d94] font-bold text-xl rounded-xl hover:bg-[#ffcc4d] transition"
+              >
+                Schätzung abgeben
+              </button>
             </div>
           </div>
         ) : currentQuestion?.question_type === 'true_false' ? (

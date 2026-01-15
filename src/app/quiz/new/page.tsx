@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/Header'
 
-type QuestionType = 'multiple_choice' | 'true_false'
+type QuestionType = 'multiple_choice' | 'true_false' | 'estimate'
 
 interface QuestionInput {
   question_text: string
@@ -40,6 +40,11 @@ export default function NewQuiz() {
         ...questions,
         { question_text: '', question_type: 'true_false', answers: ['Wahr', 'Falsch'], correct_index: 0 }
       ])
+    } else if (type === 'estimate') {
+      setQuestions([
+        ...questions,
+        { question_text: '', question_type: 'estimate', answers: ['0', '100', '50'], correct_index: 0 }
+      ])
     } else {
       setQuestions([
         ...questions,
@@ -60,6 +65,13 @@ export default function NewQuiz() {
         ...updated[index],
         question_type: 'true_false',
         answers: ['Wahr', 'Falsch'],
+        correct_index: 0
+      }
+    } else if (newType === 'estimate') {
+      updated[index] = {
+        ...updated[index],
+        question_type: 'estimate',
+        answers: ['0', '100', '50'],
         correct_index: 0
       }
     } else {
@@ -89,6 +101,14 @@ export default function NewQuiz() {
     setQuestions(updated)
   }
 
+  const updateEstimateValue = (qIndex: number, field: 'min' | 'max' | 'correct', value: string) => {
+    const updated = [...questions]
+    if (field === 'min') updated[qIndex].answers[0] = value
+    else if (field === 'max') updated[qIndex].answers[1] = value
+    else if (field === 'correct') updated[qIndex].answers[2] = value
+    setQuestions(updated)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -106,6 +126,19 @@ export default function NewQuiz() {
         const emptyAnswers = questions[i].answers.filter(a => !a.trim())
         if (emptyAnswers.length > 0) {
           alert(`Frage ${i + 1} hat leere Antworten`)
+          return
+        }
+      }
+      if (questions[i].question_type === 'estimate') {
+        const min = parseFloat(questions[i].answers[0])
+        const max = parseFloat(questions[i].answers[1])
+        const correct = parseFloat(questions[i].answers[2])
+        if (isNaN(min) || isNaN(max) || isNaN(correct)) {
+          alert(`Frage ${i + 1}: Bitte gib gültige Zahlen ein`)
+          return
+        }
+        if (correct < min || correct > max) {
+          alert(`Frage ${i + 1}: Die richtige Antwort muss zwischen Min und Max liegen`)
           return
         }
       }
@@ -193,6 +226,7 @@ export default function NewQuiz() {
                   >
                     <option value="multiple_choice">Multiple Choice</option>
                     <option value="true_false">Wahr/Falsch</option>
+                    <option value="estimate">Schätzfrage</option>
                   </select>
                 </div>
                 {questions.length > 1 && (
@@ -210,7 +244,7 @@ export default function NewQuiz() {
                 type="text"
                 value={question.question_text}
                 onChange={(e) => updateQuestion(qIndex, 'question_text', e.target.value)}
-                placeholder="Deine Frage..."
+                placeholder={question.question_type === 'estimate' ? "z.B. Wie viele Einwohner hat Deutschland (in Millionen)?" : "Deine Frage..."}
                 className="input-field mb-4"
               />
 
@@ -241,6 +275,56 @@ export default function NewQuiz() {
                     >
                       ✗ Falsch
                     </button>
+                  </div>
+                </div>
+              ) : question.question_type === 'estimate' ? (
+                // Estimate Question
+                <div>
+                  <p className="text-sm text-gray-600 mb-3">Definiere den Zahlenbereich und die richtige Antwort:</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Minimum</label>
+                      <input
+                        type="number"
+                        value={question.answers[0]}
+                        onChange={(e) => updateEstimateValue(qIndex, 'min', e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#0364c1]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Maximum</label>
+                      <input
+                        type="number"
+                        value={question.answers[1]}
+                        onChange={(e) => updateEstimateValue(qIndex, 'max', e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#0364c1]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-green-600 mb-1">✓ Richtige Antwort</label>
+                      <input
+                        type="number"
+                        value={question.answers[2]}
+                        onChange={(e) => updateEstimateValue(qIndex, 'correct', e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-green-400 bg-green-50 rounded-lg focus:outline-none focus:border-green-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4 p-3 bg-gray-100 rounded-lg">
+                    <p className="text-sm text-gray-600">Vorschau:</p>
+                    <input
+                      type="range"
+                      min={question.answers[0]}
+                      max={question.answers[1]}
+                      value={question.answers[2]}
+                      disabled
+                      className="w-full mt-2"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>{question.answers[0]}</span>
+                      <span className="text-green-600 font-semibold">Richtig: {question.answers[2]}</span>
+                      <span>{question.answers[1]}</span>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -282,20 +366,27 @@ export default function NewQuiz() {
           {/* Add Question Section */}
           <div>
             <h3 className="text-lg font-semibold text-[#022d94] mb-3">Weitere Frage hinzufügen</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <button
                 type="button"
                 onClick={() => addQuestion('multiple_choice')}
-                className="py-4 border-2 border-dashed border-[#0364c1] rounded-xl text-[#0364c1] hover:border-[#022d94] hover:text-[#022d94] transition font-semibold"
+                className="py-4 border-2 border-dashed border-[#0364c1] rounded-xl text-[#0364c1] hover:border-[#022d94] hover:text-[#022d94] transition font-semibold text-sm"
               >
                 + Multiple Choice
               </button>
               <button
                 type="button"
                 onClick={() => addQuestion('true_false')}
-                className="py-4 border-2 border-dashed border-purple-400 rounded-xl text-purple-600 hover:border-purple-600 hover:text-purple-700 transition font-semibold"
+                className="py-4 border-2 border-dashed border-purple-400 rounded-xl text-purple-600 hover:border-purple-600 hover:text-purple-700 transition font-semibold text-sm"
               >
                 + Wahr/Falsch
+              </button>
+              <button
+                type="button"
+                onClick={() => addQuestion('estimate')}
+                className="py-4 border-2 border-dashed border-orange-400 rounded-xl text-orange-600 hover:border-orange-600 hover:text-orange-700 transition font-semibold text-sm"
+              >
+                + Schätzfrage
               </button>
             </div>
           </div>

@@ -17,8 +17,8 @@ export interface Question {
   id: string
   quiz_id: string
   question_text: string
-  question_type: 'multiple_choice' | 'true_false'
-  answers: string[]
+  question_type: 'multiple_choice' | 'true_false' | 'estimate'
+  answers: string[]  // For estimate: [min, max, correct_value]
   correct_index: number
   order_index: number
 }
