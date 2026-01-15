@@ -44,6 +44,31 @@ export default function PlayGame() {
       setLastQuestionIndex(sessionData.current_question)
     }
     
+    // Check if current player has already answered this question (e.g., after page reload)
+    if (currentPlayer && sessionData.status === 'playing') {
+      const { data: questionsForCheck } = await supabase
+        .from('questions')
+        .select('id')
+        .eq('quiz_id', sessionData.quiz_id)
+        .order('order_index')
+      
+      if (questionsForCheck && questionsForCheck[sessionData.current_question]) {
+        const currentQuestionId = questionsForCheck[sessionData.current_question].id
+        const { data: existingAnswer } = await supabase
+          .from('player_answers')
+          .select('answer_index, points_earned')
+          .eq('player_id', currentPlayer.id)
+          .eq('question_id', currentQuestionId)
+          .single()
+        
+        if (existingAnswer && !hasAnswered) {
+          setHasAnswered(true)
+          setSelectedAnswer(existingAnswer.answer_index)
+          setPointsEarned(existingAnswer.points_earned)
+        }
+      }
+    }
+    
     setSession(sessionData)
 
     const { data: questionsData } = await supabase

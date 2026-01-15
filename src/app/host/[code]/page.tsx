@@ -64,15 +64,23 @@ export default function HostGame() {
     setPreviousRanks(newRanks)
     setPlayers(newPlayers)
 
-    // Count answered players for current question
-    if (sessionData.status === 'playing' && questionsData) {
+    // Count answered players for current question (only from current session)
+    if (sessionData.status === 'playing' && questionsData && playersData) {
       const currentQ = questionsData[sessionData.current_question]
       if (currentQ) {
-        const { count } = await supabase
-          .from('player_answers')
-          .select('*', { count: 'exact', head: true })
-          .eq('question_id', currentQ.id)
-        setAnsweredCount(count || 0)
+        // Get player IDs from current session
+        const playerIds = playersData.map(p => p.id)
+        
+        if (playerIds.length > 0) {
+          const { count } = await supabase
+            .from('player_answers')
+            .select('*', { count: 'exact', head: true })
+            .eq('question_id', currentQ.id)
+            .in('player_id', playerIds)
+          setAnsweredCount(count || 0)
+        } else {
+          setAnsweredCount(0)
+        }
       }
     }
 
