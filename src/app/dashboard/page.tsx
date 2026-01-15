@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, Quiz } from '@/lib/supabase'
 import Link from 'next/link'
+import Header from '@/components/Header'
 
 export default function Dashboard() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
@@ -34,11 +35,6 @@ export default function Dashboard() {
     setLoading(false)
   }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/'
-  }
-
   const deleteQuiz = async (quizId: string) => {
     if (!confirm('Quiz wirklich löschen?')) return
     
@@ -47,7 +43,6 @@ export default function Dashboard() {
   }
 
   const startGame = async (quizId: string) => {
-    // Generate 6-character code
     const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase()
     
     const { data, error } = await supabase
@@ -71,67 +66,64 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Laden...</div>
+      <div className="min-h-screen bg-[#f5f7fa]">
+        <Header />
+        <div className="flex items-center justify-center py-20">
+          <div className="text-[#022d94] text-xl">Laden...</div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-white">Meine Quizzes</h1>
-            <p className="text-gray-400 mt-1">{user?.email}</p>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 text-gray-300 hover:text-white transition"
-          >
-            Ausloggen
-          </button>
+    <div className="min-h-screen bg-[#f5f7fa]">
+      <Header showProfile />
+      
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-[#022d94]">Meine Quizzes</h1>
         </div>
 
         {/* Create New Quiz Button */}
         <Link
           href="/quiz/new"
-          className="block w-full p-6 mb-6 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border-2 border-dashed border-purple-500/50 rounded-xl text-center hover:border-purple-400 transition group"
+          className="block w-full p-6 mb-6 card border-2 border-dashed border-[#0364c1] hover:border-[#022d94] transition group text-center"
         >
-          <span className="text-5xl mb-2 block group-hover:scale-110 transition">➕</span>
-          <span className="text-xl text-white font-semibold">Neues Quiz erstellen</span>
+          <span className="text-5xl mb-2 block text-[#022d94] font-light">+</span>
+          <span className="text-lg text-[#022d94] font-semibold group-hover:text-[#0364c1]">
+            Neues Quiz erstellen
+          </span>
         </Link>
 
         {/* Quiz List */}
         {quizzes.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-400 text-lg">Du hast noch keine Quizzes erstellt.</p>
+          <div className="text-center py-12 card">
+            <p className="text-gray-500 text-lg">Du hast noch keine Quizzes erstellt. Erstellte Quizzes werden hier angezeigt.</p>
           </div>
         ) : (
           <div className="space-y-4">
             {quizzes.map((quiz) => (
               <div
                 key={quiz.id}
-                className="bg-white/10 backdrop-blur rounded-xl p-6 border border-white/20"
+                className="card p-6"
               >
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-xl font-semibold text-white">{quiz.title}</h3>
-                    <p className="text-gray-400 text-sm mt-1">
+                    <h3 className="text-xl font-semibold text-[#022d94]">{quiz.title}</h3>
+                    <p className="text-gray-500 text-sm mt-1">
                       Erstellt: {new Date(quiz.created_at).toLocaleDateString('de-DE')}
                     </p>
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => startGame(quiz.id)}
-                      className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold hover:from-green-600 hover:to-emerald-600 transition"
+                      className="btn-secondary text-sm"
                     >
                       ▶ Starten
                     </button>
                     <button
                       onClick={() => deleteQuiz(quiz.id)}
-                      className="px-4 py-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition"
+                      className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition text-sm font-semibold"
                     >
                       🗑️
                     </button>
@@ -141,7 +133,7 @@ export default function Dashboard() {
             ))}
           </div>
         )}
-      </div>
+      </main>
     </div>
   )
 }

@@ -2,9 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import Header from '@/components/Header'
+
+type QuestionType = 'multiple_choice' | 'true_false'
 
 interface QuestionInput {
   question_text: string
+  question_type: QuestionType
   answers: string[]
   correct_index: number
 }
@@ -12,7 +16,7 @@ interface QuestionInput {
 export default function NewQuiz() {
   const [title, setTitle] = useState('')
   const [questions, setQuestions] = useState<QuestionInput[]>([
-    { question_text: '', answers: ['', '', '', ''], correct_index: 0 }
+    { question_text: '', question_type: 'multiple_choice', answers: ['', '', '', ''], correct_index: 0 }
   ])
   const [saving, setSaving] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -30,16 +34,43 @@ export default function NewQuiz() {
     setUserId(user.id)
   }
 
-  const addQuestion = () => {
-    setQuestions([
-      ...questions,
-      { question_text: '', answers: ['', '', '', ''], correct_index: 0 }
-    ])
+  const addQuestion = (type: QuestionType) => {
+    if (type === 'true_false') {
+      setQuestions([
+        ...questions,
+        { question_text: '', question_type: 'true_false', answers: ['Wahr', 'Falsch'], correct_index: 0 }
+      ])
+    } else {
+      setQuestions([
+        ...questions,
+        { question_text: '', question_type: 'multiple_choice', answers: ['', '', '', ''], correct_index: 0 }
+      ])
+    }
   }
 
   const removeQuestion = (index: number) => {
     if (questions.length <= 1) return
     setQuestions(questions.filter((_, i) => i !== index))
+  }
+
+  const changeQuestionType = (index: number, newType: QuestionType) => {
+    const updated = [...questions]
+    if (newType === 'true_false') {
+      updated[index] = {
+        ...updated[index],
+        question_type: 'true_false',
+        answers: ['Wahr', 'Falsch'],
+        correct_index: 0
+      }
+    } else {
+      updated[index] = {
+        ...updated[index],
+        question_type: 'multiple_choice',
+        answers: ['', '', '', ''],
+        correct_index: 0
+      }
+    }
+    setQuestions(updated)
   }
 
   const updateQuestion = (index: number, field: string, value: string | number) => {
@@ -66,23 +97,23 @@ export default function NewQuiz() {
       return
     }
 
-    // Validate questions
     for (let i = 0; i < questions.length; i++) {
       if (!questions[i].question_text.trim()) {
         alert(`Frage ${i + 1} hat keinen Text`)
         return
       }
-      const emptyAnswers = questions[i].answers.filter(a => !a.trim())
-      if (emptyAnswers.length > 0) {
-        alert(`Frage ${i + 1} hat leere Antworten`)
-        return
+      if (questions[i].question_type === 'multiple_choice') {
+        const emptyAnswers = questions[i].answers.filter(a => !a.trim())
+        if (emptyAnswers.length > 0) {
+          alert(`Frage ${i + 1} hat leere Antworten`)
+          return
+        }
       }
     }
 
     setSaving(true)
 
     try {
-      // Create quiz
       const { data: quiz, error: quizError } = await supabase
         .from('quizzes')
         .insert({ title, creator_id: userId })
@@ -91,10 +122,10 @@ export default function NewQuiz() {
 
       if (quizError) throw quizError
 
-      // Create questions
       const questionsToInsert = questions.map((q, index) => ({
         quiz_id: quiz.id,
         question_text: q.question_text,
+        question_type: q.question_type,
         answers: q.answers,
         correct_index: q.correct_index,
         order_index: index
@@ -114,44 +145,63 @@ export default function NewQuiz() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-6">
-      <div className="max-w-3xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-white">Neues Quiz</h1>
-          <a href="/dashboard" className="text-gray-400 hover:text-white transition">
-            ← Zurück
-          </a>
-        </div>
+  const answerColors = [
+    'border-red-400 focus:border-red-500',
+    'border-blue-400 focus:border-blue-500', 
+    'border-yellow-400 focus:border-yellow-500',
+    'border-green-400 focus:border-green-500'
+  ]
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+  const answerBgColors = [
+    'bg-red-50',
+    'bg-blue-50',
+    'bg-yellow-50',
+    'bg-green-50'
+  ]
+
+  return (
+    <div className="min-h-screen bg-[#f5f7fa]">
+      <Header showBackButton backHref="/dashboard" showProfile />
+      
+      <main className="max-w-3xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-[#022d94] mb-6">Neues Quiz erstellen</h1>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* Quiz Title */}
-          <div className="bg-white/10 backdrop-blur rounded-xl p-6 border border-white/20">
-            <label className="block text-white font-semibold mb-2">Quiz-Titel</label>
+          <div className="card p-6">
+            <label className="block text-[#022d94] font-semibold mb-2">Quiz-Titel</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="z.B. Allgemeinwissen"
-              className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="input-field"
             />
           </div>
 
           {/* Questions */}
           {questions.map((question, qIndex) => (
-            <div
-              key={qIndex}
-              className="bg-white/10 backdrop-blur rounded-xl p-6 border border-white/20"
-            >
+            <div key={qIndex} className="card p-6">
               <div className="flex justify-between items-start mb-4">
-                <h3 className="text-xl font-semibold text-white">Frage {qIndex + 1}</h3>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-xl font-semibold text-[#022d94]">Frage {qIndex + 1}</h3>
+                  {/* Question Type Selector */}
+                  <select
+                    value={question.question_type}
+                    onChange={(e) => changeQuestionType(qIndex, e.target.value as QuestionType)}
+                    className="text-sm px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-[#0364c1]"
+                  >
+                    <option value="multiple_choice">Multiple Choice</option>
+                    <option value="true_false">Wahr/Falsch</option>
+                  </select>
+                </div>
                 {questions.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removeQuestion(qIndex)}
-                    className="text-red-400 hover:text-red-300 transition"
+                    className="flex items-center gap-1 text-red-500 hover:text-red-700 transition text-sm font-medium px-3 py-1 rounded hover:bg-red-50"
                   >
-                    Entfernen
+                    <span>🗑️</span> Löschen
                   </button>
                 )}
               </div>
@@ -161,63 +211,105 @@ export default function NewQuiz() {
                 value={question.question_text}
                 onChange={(e) => updateQuestion(qIndex, 'question_text', e.target.value)}
                 placeholder="Deine Frage..."
-                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4"
+                className="input-field mb-4"
               />
 
-              <div className="grid grid-cols-2 gap-3">
-                {question.answers.map((answer, aIndex) => (
-                  <div key={aIndex} className="relative">
-                    <input
-                      type="text"
-                      value={answer}
-                      onChange={(e) => updateAnswer(qIndex, aIndex, e.target.value)}
-                      placeholder={`Antwort ${aIndex + 1}`}
-                      className={`w-full px-4 py-3 pr-12 rounded-lg border text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                        question.correct_index === aIndex
-                          ? 'bg-green-500/20 border-green-500/50'
-                          : 'bg-white/10 border-white/20'
-                      }`}
-                    />
+              {question.question_type === 'true_false' ? (
+                // True/False Question
+                <div>
+                  <p className="text-sm text-gray-600 mb-3">Wähle die richtige Antwort:</p>
+                  <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => updateQuestion(qIndex, 'correct_index', aIndex)}
-                      className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition ${
-                        question.correct_index === aIndex
-                          ? 'bg-green-500 text-white'
-                          : 'bg-white/20 text-gray-400 hover:bg-white/30'
+                      onClick={() => updateQuestion(qIndex, 'correct_index', 0)}
+                      className={`p-4 rounded-lg border-2 font-semibold transition ${
+                        question.correct_index === 0
+                          ? 'bg-green-100 border-green-500 text-green-700'
+                          : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
                       }`}
-                      title="Als richtige Antwort markieren"
                     >
-                      ✓
+                      ✓ Wahr
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateQuestion(qIndex, 'correct_index', 1)}
+                      className={`p-4 rounded-lg border-2 font-semibold transition ${
+                        question.correct_index === 1
+                          ? 'bg-green-100 border-green-500 text-green-700'
+                          : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      ✗ Falsch
                     </button>
                   </div>
-                ))}
-              </div>
-              <p className="text-gray-400 text-sm mt-2">
-                Klicke auf ✓ um die richtige Antwort zu markieren
-              </p>
+                </div>
+              ) : (
+                // Multiple Choice Question
+                <div>
+                  <p className="text-sm text-gray-600 mb-3">Antworten (klicke auf ✓ für die richtige Antwort):</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {question.answers.map((answer, aIndex) => (
+                      <div key={aIndex} className="relative">
+                        <input
+                          type="text"
+                          value={answer}
+                          onChange={(e) => updateAnswer(qIndex, aIndex, e.target.value)}
+                          placeholder={`Antwort ${aIndex + 1}`}
+                          className={`w-full px-4 py-3 pr-12 rounded-lg border-2 ${answerColors[aIndex]} ${
+                            question.correct_index === aIndex ? answerBgColors[aIndex] : 'bg-white'
+                          } focus:outline-none transition`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => updateQuestion(qIndex, 'correct_index', aIndex)}
+                          className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition ${
+                            question.correct_index === aIndex
+                              ? 'bg-green-500 text-white'
+                              : 'bg-gray-200 text-gray-400 hover:bg-gray-300'
+                          }`}
+                          title="Als richtige Antwort markieren"
+                        >
+                          ✓
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
 
-          {/* Add Question Button */}
-          <button
-            type="button"
-            onClick={addQuestion}
-            className="w-full py-4 border-2 border-dashed border-purple-500/50 rounded-xl text-purple-300 hover:border-purple-400 hover:text-purple-200 transition"
-          >
-            + Weitere Frage hinzufügen
-          </button>
+          {/* Add Question Section */}
+          <div>
+            <h3 className="text-lg font-semibold text-[#022d94] mb-3">Weitere Frage hinzufügen</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => addQuestion('multiple_choice')}
+                className="py-4 border-2 border-dashed border-[#0364c1] rounded-xl text-[#0364c1] hover:border-[#022d94] hover:text-[#022d94] transition font-semibold"
+              >
+                + Multiple Choice
+              </button>
+              <button
+                type="button"
+                onClick={() => addQuestion('true_false')}
+                className="py-4 border-2 border-dashed border-purple-400 rounded-xl text-purple-600 hover:border-purple-600 hover:text-purple-700 transition font-semibold"
+              >
+                + Wahr/Falsch
+              </button>
+            </div>
+          </div>
 
           {/* Submit Button */}
           <button
             type="submit"
             disabled={saving}
-            className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-xl rounded-xl hover:from-purple-700 hover:to-pink-700 transition disabled:opacity-50"
+            className="w-full btn-secondary text-xl py-4 disabled:opacity-50"
           >
             {saving ? 'Speichern...' : 'Quiz speichern'}
           </button>
         </form>
-      </div>
+      </main>
     </div>
   )
 }

@@ -1,26 +1,100 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --check24-blue: #022d94;
+  --check24-yellow: #ffbb1e;
+  --check24-lightblue: #0364c1;
+  --background: #f5f7fa;
+  --foreground: #1a1a1a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-check24-blue: var(--check24-blue);
+  --color-check24-yellow: var(--check24-yellow);
+  --color-check24-lightblue: var(--check24-lightblue);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  font-family: Verdana, Geneva, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Custom button styles */
+.btn-primary {
+  background: linear-gradient(180deg, #0364c1 0%, #022d94 100%);
+  color: white;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 12px 24px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(2, 45, 148, 0.3);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(180deg, #0470d4 0%, #033bb0 100%);
+  box-shadow: 0 4px 8px rgba(2, 45, 148, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: linear-gradient(180deg, #ffcc4d 0%, #ffbb1e 100%);
+  color: #022d94;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 12px 24px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(255, 187, 30, 0.4);
+}
+
+.btn-secondary:hover {
+  background: linear-gradient(180deg, #ffd866 0%, #ffcc4d 100%);
+  box-shadow: 0 4px 8px rgba(255, 187, 30, 0.5);
+  transform: translateY(-1px);
+}
+
+/* Card styles */
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+/* Input styles */
+.input-field {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.2s ease;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: #0364c1;
+  box-shadow: 0 0 0 3px rgba(3, 100, 193, 0.1);
+}
+
+/* Answer button colors for quiz */
+.answer-red {
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+}
+
+.answer-blue {
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.answer-yellow {
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+}
+
+.answer-green {
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
 }

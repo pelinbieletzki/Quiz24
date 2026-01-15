@@ -17,6 +17,7 @@ export interface Question {
   id: string
   quiz_id: string
   question_text: string
+  question_type: 'multiple_choice' | 'true_false'
   answers: string[]
   correct_index: number
   order_index: number

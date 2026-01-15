@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase, GameSession, Question, Player } from '@/lib/supabase'
 import { useParams } from 'next/navigation'
+import Header from '@/components/Header'
 
 export default function PlayGame() {
   const params = useParams()
@@ -21,7 +22,6 @@ export default function PlayGame() {
   const [lastQuestionIndex, setLastQuestionIndex] = useState(-1)
 
   const loadGameData = useCallback(async () => {
-    // Load session
     const { data: sessionData } = await supabase
       .from('game_sessions')
       .select('*')
@@ -34,7 +34,6 @@ export default function PlayGame() {
       return
     }
     
-    // Reset answer state when question changes
     if (sessionData.current_question !== lastQuestionIndex) {
       setHasAnswered(false)
       setSelectedAnswer(null)
@@ -43,7 +42,6 @@ export default function PlayGame() {
     
     setSession(sessionData)
 
-    // Load questions
     const { data: questionsData } = await supabase
       .from('questions')
       .select('*')
@@ -52,7 +50,6 @@ export default function PlayGame() {
 
     setQuestions(questionsData || [])
 
-    // Load players
     const { data: playersData } = await supabase
       .from('players')
       .select('*')
@@ -61,7 +58,6 @@ export default function PlayGame() {
 
     setPlayers(playersData || [])
     
-    // Update current player score
     if (currentPlayer) {
       const updated = playersData?.find(p => p.id === currentPlayer.id)
       if (updated) setCurrentPlayer(updated)
@@ -76,7 +72,6 @@ export default function PlayGame() {
     return () => clearInterval(interval)
   }, [loadGameData])
 
-  // Timer countdown
   useEffect(() => {
     if (session?.status === 'playing' && session?.question_start_time) {
       const startTime = new Date(session.question_start_time).getTime()
@@ -124,14 +119,12 @@ export default function PlayGame() {
     const currentQuestion = questions[session.current_question]
     const isCorrect = answerIndex === currentQuestion?.correct_index
     
-    // Calculate points based on time (max 1000, min 100 for correct)
     const responseTime = session.question_start_time 
       ? Date.now() - new Date(session.question_start_time).getTime()
       : 15000
     
     const points = isCorrect ? Math.max(100, Math.round(1000 - (responseTime / 15))) : 0
 
-    // Save answer
     await supabase.from('player_answers').insert({
       player_id: currentPlayer.id,
       question_id: currentQuestion.id,
@@ -140,7 +133,6 @@ export default function PlayGame() {
       points_earned: points
     })
 
-    // Update player score
     await supabase
       .from('players')
       .update({ score: currentPlayer.score + points })
@@ -151,8 +143,11 @@ export default function PlayGame() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Laden...</div>
+      <div className="min-h-screen bg-[#f5f7fa]">
+        <Header />
+        <div className="flex items-center justify-center py-20">
+          <div className="text-[#022d94] text-xl">Laden...</div>
+        </div>
       </div>
     )
   }
@@ -160,33 +155,37 @@ export default function PlayGame() {
   // JOIN FORM
   if (!joined) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex flex-col items-center justify-center p-4">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Spiel beitreten</h1>
-          <p className="text-gray-300">Code: <span className="font-mono text-purple-300">{code}</span></p>
-        </div>
-
-        <form onSubmit={joinGame} className="w-full max-w-md">
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
-            <label className="block text-white font-semibold mb-2">Dein Nickname</label>
-            <input
-              type="text"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              placeholder="z.B. QuizMaster"
-              maxLength={20}
-              className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-            
-            <button
-              type="submit"
-              disabled={!nickname.trim()}
-              className="w-full mt-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-pink-700 transition disabled:opacity-50"
-            >
-              Beitreten
-            </button>
+      <div className="min-h-screen bg-gradient-to-b from-[#022d94] to-[#0364c1]">
+        <Header />
+        
+        <main className="flex flex-col items-center justify-center px-4 py-16">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-white mb-2">Spiel beitreten</h1>
+            <p className="text-white/80">Code: <span className="font-mono text-[#ffbb1e] font-bold">{code}</span></p>
           </div>
-        </form>
+
+          <form onSubmit={joinGame} className="w-full max-w-md">
+            <div className="card p-8">
+              <label className="block text-[#022d94] font-semibold mb-2">Dein Nickname</label>
+              <input
+                type="text"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="z.B. QuizMaster"
+                maxLength={20}
+                className="input-field mb-4"
+              />
+              
+              <button
+                type="submit"
+                disabled={!nickname.trim()}
+                className="w-full btn-secondary disabled:opacity-50"
+              >
+                Beitreten
+              </button>
+            </div>
+          </form>
+        </main>
       </div>
     )
   }
@@ -194,30 +193,34 @@ export default function PlayGame() {
   // LOBBY - Waiting for game to start
   if (session?.status === 'lobby') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex flex-col items-center justify-center p-4">
-        <div className="text-center">
-          <div className="text-6xl mb-6 animate-bounce">🎮</div>
-          <h1 className="text-3xl font-bold text-white mb-4">Warte auf Start...</h1>
-          <p className="text-gray-300 mb-8">Du bist drin, {currentPlayer?.nickname}!</p>
-          
-          <div className="bg-white/10 backdrop-blur rounded-xl p-6 border border-white/20">
-            <p className="text-gray-400 mb-2">Spieler in der Lobby:</p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {players.map((player) => (
-                <span
-                  key={player.id}
-                  className={`px-3 py-1 rounded-full text-sm ${
-                    player.id === currentPlayer?.id 
-                      ? 'bg-purple-500 text-white' 
-                      : 'bg-white/20 text-gray-300'
-                  }`}
-                >
-                  {player.nickname}
-                </span>
-              ))}
+      <div className="min-h-screen bg-gradient-to-b from-[#022d94] to-[#0364c1]">
+        <Header />
+        
+        <main className="flex flex-col items-center justify-center px-4 py-16">
+          <div className="text-center">
+            <div className="text-6xl mb-6 animate-bounce">🎮</div>
+            <h1 className="text-3xl font-bold text-white mb-4">Warte auf Start...</h1>
+            <p className="text-white/80 mb-8">Du bist drin, <span className="text-[#ffbb1e] font-bold">{currentPlayer?.nickname}</span>!</p>
+            
+            <div className="card p-6">
+              <p className="text-gray-500 mb-3">Spieler in der Lobby:</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {players.map((player) => (
+                  <span
+                    key={player.id}
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      player.id === currentPlayer?.id 
+                        ? 'bg-[#ffbb1e] text-[#022d94]' 
+                        : 'bg-[#022d94] text-white'
+                    }`}
+                  >
+                    {player.nickname}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </main>
       </div>
     )
   }
@@ -227,35 +230,37 @@ export default function PlayGame() {
     const rank = players.findIndex(p => p.id === currentPlayer?.id) + 1
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-6">
-        <div className="max-w-md mx-auto text-center">
-          <h1 className="text-5xl font-bold text-white mb-4">🎉 Fertig!</h1>
+      <div className="min-h-screen bg-gradient-to-b from-[#022d94] to-[#0364c1]">
+        <Header />
+        
+        <main className="max-w-md mx-auto px-4 py-8 text-center">
+          <h1 className="text-4xl font-bold text-white mb-4">🎉 Fertig!</h1>
           
-          <div className="bg-white/10 backdrop-blur rounded-2xl p-8 mb-8 border border-white/20">
-            <p className="text-gray-300 mb-2">Du bist</p>
-            <p className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 mb-2">
+          <div className="card p-8 mb-6">
+            <p className="text-gray-500 mb-2">Du bist</p>
+            <p className="text-6xl font-bold text-[#022d94] mb-2">
               #{rank}
             </p>
-            <p className="text-2xl text-white font-semibold">
+            <p className="text-2xl text-[#022d94] font-semibold">
               {currentPlayer?.score} Punkte
             </p>
           </div>
 
-          <div className="bg-white/10 backdrop-blur rounded-xl p-6 border border-white/20">
-            <h2 className="text-xl font-semibold text-white mb-4">Alle Spieler</h2>
+          <div className="card p-6">
+            <h2 className="text-xl font-semibold text-[#022d94] mb-4">Alle Spieler</h2>
             <div className="space-y-2">
               {players.map((player, index) => (
                 <div
                   key={player.id}
                   className={`flex justify-between items-center p-3 rounded-lg ${
-                    player.id === currentPlayer?.id ? 'bg-purple-500/30' : 'bg-white/5'
+                    player.id === currentPlayer?.id ? 'bg-[#ffbb1e]' : 'bg-gray-100'
                   }`}
                 >
-                  <span className="text-white">
+                  <span className="text-[#022d94] font-medium">
                     {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}{' '}
                     {player.nickname}
                   </span>
-                  <span className="text-white font-bold">{player.score}</span>
+                  <span className="text-[#022d94] font-bold">{player.score}</span>
                 </div>
               ))}
             </div>
@@ -263,77 +268,101 @@ export default function PlayGame() {
 
           <a
             href="/join"
-            className="inline-block mt-8 px-6 py-3 bg-white/10 text-white rounded-xl hover:bg-white/20 transition"
+            className="inline-block mt-8 px-6 py-3 bg-white text-[#022d94] font-semibold rounded-xl hover:bg-gray-100 transition"
           >
             Neues Spiel beitreten
           </a>
-        </div>
+        </main>
       </div>
     )
   }
 
   // PLAYING - Show question and answers
   const currentQuestion = questions[session?.current_question || 0]
+  const answerColors = [
+    'bg-red-500 hover:bg-red-600 active:bg-red-700',
+    'bg-blue-500 hover:bg-blue-600 active:bg-blue-700',
+    'bg-yellow-500 hover:bg-yellow-600 active:bg-yellow-700',
+    'bg-green-500 hover:bg-green-600 active:bg-green-700'
+  ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-4 flex flex-col">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="text-white">
-          <span className="text-gray-400">Frage</span>{' '}
-          <span className="text-xl font-bold">{(session?.current_question || 0) + 1}</span>
-          <span className="text-gray-400">/{questions.length}</span>
-        </div>
-        <div className={`text-3xl font-bold ${timeLeft <= 5 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
-          {timeLeft}s
-        </div>
-        <div className="text-white">
-          <span className="text-gray-400">Punkte:</span>{' '}
-          <span className="font-bold">{currentPlayer?.score}</span>
-        </div>
-      </div>
-
-      {/* Question */}
-      <div className="bg-white/10 backdrop-blur rounded-xl p-6 mb-4 border border-white/20">
-        <h2 className="text-xl font-bold text-white text-center">
-          {currentQuestion?.question_text}
-        </h2>
-      </div>
-
-      {/* Answers */}
-      {hasAnswered ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-6xl mb-4">
-              {selectedAnswer === currentQuestion?.correct_index ? '✅' : '❌'}
-            </div>
-            <p className="text-xl text-white">
-              {selectedAnswer === currentQuestion?.correct_index 
-                ? 'Richtig!' 
-                : 'Leider falsch'}
-            </p>
-            <p className="text-gray-400 mt-2">Warte auf die nächste Frage...</p>
+    <div className="min-h-screen bg-[#f5f7fa] flex flex-col">
+      <Header />
+      
+      <main className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-4 py-4">
+        {/* Header Info */}
+        <div className="flex justify-between items-center mb-4">
+          <div className="text-[#022d94]">
+            <span className="text-gray-500">Frage</span>{' '}
+            <span className="text-xl font-bold">{(session?.current_question || 0) + 1}</span>
+            <span className="text-gray-500">/{questions.length}</span>
+          </div>
+          <div className={`text-3xl font-bold ${timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-[#022d94]'}`}>
+            {timeLeft}s
+          </div>
+          <div className="text-[#022d94]">
+            <span className="text-gray-500">Punkte:</span>{' '}
+            <span className="font-bold">{currentPlayer?.score}</span>
           </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 flex-1">
-          {currentQuestion?.answers.map((answer, index) => (
-            <button
-              key={index}
-              onClick={() => submitAnswer(index)}
-              disabled={hasAnswered}
-              className={`p-4 rounded-xl text-lg font-semibold text-white transition transform hover:scale-[1.02] active:scale-95 ${
-                index === 0 ? 'bg-red-500 hover:bg-red-600' :
-                index === 1 ? 'bg-blue-500 hover:bg-blue-600' :
-                index === 2 ? 'bg-yellow-500 hover:bg-yellow-600' :
-                'bg-green-500 hover:bg-green-600'
-              }`}
-            >
-              {answer}
-            </button>
-          ))}
+
+        {/* Question */}
+        <div className="card p-6 mb-4">
+          <h2 className="text-xl font-bold text-[#022d94] text-center">
+            {currentQuestion?.question_text}
+          </h2>
         </div>
-      )}
+
+        {/* Answers */}
+        {hasAnswered ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center card p-8">
+              <div className="text-6xl mb-4">
+                {selectedAnswer === currentQuestion?.correct_index ? '✅' : '❌'}
+              </div>
+              <p className="text-xl text-[#022d94] font-semibold">
+                {selectedAnswer === currentQuestion?.correct_index 
+                  ? 'Richtig!' 
+                  : 'Leider falsch'}
+              </p>
+              <p className="text-gray-500 mt-2">Warte auf die nächste Frage...</p>
+            </div>
+          </div>
+        ) : currentQuestion?.question_type === 'true_false' ? (
+          // True/False Buttons
+          <div className="grid grid-cols-2 gap-4 flex-1 max-h-40">
+            <button
+              onClick={() => submitAnswer(0)}
+              disabled={hasAnswered}
+              className="bg-green-500 hover:bg-green-600 active:bg-green-700 p-6 rounded-xl text-xl font-bold text-white transition transform hover:scale-[1.02] active:scale-95 shadow-lg"
+            >
+              ✓ Wahr
+            </button>
+            <button
+              onClick={() => submitAnswer(1)}
+              disabled={hasAnswered}
+              className="bg-red-500 hover:bg-red-600 active:bg-red-700 p-6 rounded-xl text-xl font-bold text-white transition transform hover:scale-[1.02] active:scale-95 shadow-lg"
+            >
+              ✗ Falsch
+            </button>
+          </div>
+        ) : (
+          // Multiple Choice Buttons
+          <div className="grid grid-cols-2 gap-3 flex-1">
+            {currentQuestion?.answers.map((answer, index) => (
+              <button
+                key={index}
+                onClick={() => submitAnswer(index)}
+                disabled={hasAnswered}
+                className={`${answerColors[index]} p-4 rounded-xl text-lg font-semibold text-white transition transform hover:scale-[1.02] active:scale-95 shadow-lg`}
+              >
+                {answer}
+              </button>
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   )
 }

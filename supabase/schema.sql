@@ -14,6 +14,7 @@ CREATE TABLE questions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   quiz_id UUID REFERENCES quizzes(id) ON DELETE CASCADE,
   question_text TEXT NOT NULL,
+  question_type TEXT DEFAULT 'multiple_choice',
   answers TEXT[] NOT NULL,
   correct_index INT NOT NULL,
   order_index INT NOT NULL
