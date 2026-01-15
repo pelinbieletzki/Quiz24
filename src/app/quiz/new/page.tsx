@@ -281,32 +281,32 @@ export default function NewQuiz() {
                 // Estimate Question
                 <div>
                   <p className="text-sm text-gray-600 mb-3">Definiere den Zahlenbereich und die richtige Antwort:</p>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-4 items-end">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Minimum</label>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1 h-4">Minimum</label>
                       <input
                         type="number"
                         value={question.answers[0]}
                         onChange={(e) => updateEstimateValue(qIndex, 'min', e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#0364c1]"
+                        className="w-full h-10 px-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#0364c1]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Maximum</label>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1 h-4">Maximum</label>
                       <input
                         type="number"
                         value={question.answers[1]}
                         onChange={(e) => updateEstimateValue(qIndex, 'max', e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#0364c1]"
+                        className="w-full h-10 px-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#0364c1]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-green-600 mb-1">✓ Richtige Antwort</label>
+                      <label className="block text-xs font-semibold text-green-600 mb-1 h-4">✓ Richtig</label>
                       <input
                         type="number"
                         value={question.answers[2]}
                         onChange={(e) => updateEstimateValue(qIndex, 'correct', e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-green-400 bg-green-50 rounded-lg focus:outline-none focus:border-green-500"
+                        className="w-full h-10 px-3 border-2 border-green-400 bg-green-50 rounded-lg focus:outline-none focus:border-green-500"
                       />
                     </div>
                   </div>
